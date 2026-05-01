@@ -1,25 +1,33 @@
 {
   "expo": {
     "name": "SayBright",
-    "slug": "SayBright",
+    "slug": "saybright",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "scheme": "saybright",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FFF8F0"
     },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.saybright.app",
+      "buildNumber": "1"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#F5A623"
       },
+      "package": "com.saybright.app",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
