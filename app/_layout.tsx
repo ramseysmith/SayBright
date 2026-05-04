@@ -14,11 +14,17 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
+import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 import { COLORS } from '../src/constants/theme';
 import { getUserData, updateUserData } from '../src/services/storage';
 import { ToastProvider } from '../src/components/Toast';
 import { PremiumProvider } from '../src/context/PremiumContext';
+import { ShareProvider } from '../src/context/ShareContext';
 import { initializePurchases } from '../src/services/purchases';
+import { AnimatedSplash } from '../src/components/AnimatedSplash';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -31,6 +37,7 @@ export default function RootLayout() {
 
   const [bootChecked, setBootChecked] = useState(false);
   const [hasSeenOnboarding, setSeen] = useState<boolean | null>(null);
+  const [splashDone, setSplashDone] = useState(false);
   const segments = useSegments();
   const router = useRouter();
 
@@ -55,6 +62,12 @@ export default function RootLayout() {
   }, []);
 
   useEffect(() => {
+    if (fontsLoaded && bootChecked) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [fontsLoaded, bootChecked]);
+
+  useEffect(() => {
     if (!bootChecked || hasSeenOnboarding === null) return;
     const inOnboarding = segments[0] === 'onboarding';
     if (!hasSeenOnboarding && !inOnboarding) {
@@ -63,6 +76,13 @@ export default function RootLayout() {
       router.replace('/(tabs)');
     }
   }, [bootChecked, hasSeenOnboarding, segments, router]);
+
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      router.replace('/(tabs)');
+    });
+    return () => sub.remove();
+  }, [router]);
 
   if (!fontsLoaded || !bootChecked) {
     return (
@@ -77,25 +97,30 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <PremiumProvider>
           <ToastProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen
-                name="onboarding"
-                options={{ headerShown: false, gestureEnabled: false }}
-              />
-              <Stack.Screen
-                name="category/[id]"
-                options={{ headerShown: false, presentation: 'card' }}
-              />
-              <Stack.Screen
-                name="paywall"
-                options={{
-                  headerShown: false,
-                  presentation: 'modal',
-                  gestureEnabled: true,
-                }}
-              />
-            </Stack>
+            <ShareProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen
+                  name="onboarding"
+                  options={{ headerShown: false, gestureEnabled: false }}
+                />
+                <Stack.Screen
+                  name="category/[id]"
+                  options={{ headerShown: false, presentation: 'card' }}
+                />
+                <Stack.Screen
+                  name="paywall"
+                  options={{
+                    headerShown: false,
+                    presentation: 'modal',
+                    gestureEnabled: true,
+                  }}
+                />
+              </Stack>
+              {!splashDone ? (
+                <AnimatedSplash onFinished={() => setSplashDone(true)} />
+              ) : null}
+            </ShareProvider>
           </ToastProvider>
         </PremiumProvider>
       </SafeAreaProvider>

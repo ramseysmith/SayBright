@@ -28,6 +28,7 @@ import {
 } from '../../src/services/storage';
 import { useToast } from '../../src/components/Toast';
 import { usePremium } from '../../src/context/PremiumContext';
+import { useShare } from '../../src/context/ShareContext';
 
 const FREE_DAILY_VIEWS = 5;
 
@@ -38,6 +39,7 @@ export default function CategoryDetailScreen() {
   const category = id ? getCategoryById(id) : undefined;
   const items = id ? getAffirmationsByCategory(id) : [];
   const { isPremium } = usePremium();
+  const { shareAffirmation } = useShare();
 
   const [favorites, setFavorites] = useState<string[]>([]);
   const [browseViews, setBrowseViews] = useState(0);
@@ -99,7 +101,11 @@ export default function CategoryDetailScreen() {
               color={isFav ? COLORS.warmCoral : COLORS.textSecondary}
             />
           </Pressable>
-          <Pressable hitSlop={12} style={styles.iconSpacer}>
+          <Pressable
+            hitSlop={12}
+            onPress={() => shareAffirmation(item)}
+            style={styles.iconSpacer}
+          >
             <Ionicons
               name="share-outline"
               size={22}

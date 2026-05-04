@@ -38,6 +38,11 @@ import {
 import { getTimeOfDay } from '../../src/utils/time';
 import { usePremium } from '../../src/context/PremiumContext';
 import { preloadInterstitial, showInterstitial } from '../../src/services/ads';
+import { checkInToday } from '../../src/services/streak';
+import { maybeRequestReview } from '../../src/services/review';
+import { MilestoneCelebration } from '../../src/components/MilestoneCelebration';
+import { StreakCalendar } from '../../src/components/StreakCalendar';
+import { useShare } from '../../src/context/ShareContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FREE_DAILY_SWIPES = 5;
@@ -51,8 +56,12 @@ export default function TodayScreen() {
   const [sessionSwipes, setSessionSwipes] = useState(0);
   const [paywall, setPaywall] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [streakCount, setStreakCount] = useState(0);
+  const [milestone, setMilestone] = useState<number | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const { isPremium } = usePremium();
   const router = useRouter();
+  const { shareAffirmation } = useShare();
 
   const { period, gradient } = useMemo(() => getTimeOfDay(), []);
   const textColor = gradient.textColor;
@@ -65,6 +74,10 @@ export default function TodayScreen() {
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.95);
   const animating = useRef(false);
+  const streakBadgeScale = useSharedValue(1);
+  const streakBadgeStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: streakBadgeScale.value }],
+  }));
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { scale: scale.value }],
@@ -89,11 +102,31 @@ export default function TodayScreen() {
       setLoading(false);
       opacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
       scale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
+
+      const streakResult = await checkInToday();
+      if (!active) return;
+      setStreakCount(streakResult.current);
+      if (streakResult.isNewDay) {
+        Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        ).catch(() => {});
+        streakBadgeScale.value = withSequence(
+          withSpring(1.4, { damping: 6, stiffness: 200 }),
+          withSpring(1, { damping: 12, stiffness: 200 })
+        );
+        if (streakResult.milestone) {
+          setMilestone(streakResult.milestone);
+        } else {
+          setTimeout(() => {
+            maybeRequestReview();
+          }, 2000);
+        }
+      }
     })();
     return () => {
       active = false;
     };
-  }, [opacity, scale]);
+  }, [opacity, scale, streakBadgeScale]);
 
   useEffect(() => {
     if (!isPremium) {
@@ -231,9 +264,13 @@ export default function TodayScreen() {
           ) : (
             <View />
           )}
-          <View style={styles.streakBadge}>
-            <Text style={[styles.streakText, { color: textColor }]}>🔥 0</Text>
-          </View>
+          <Pressable onPress={() => setCalendarOpen(true)} hitSlop={6}>
+            <Animated.View style={[styles.streakBadge, streakBadgeStyle]}>
+              <Text style={[styles.streakText, { color: textColor }]}>
+                🔥 {streakCount}
+              </Text>
+            </Animated.View>
+          </Pressable>
         </View>
 
         <View style={styles.cardWrapper}>
@@ -273,7 +310,10 @@ export default function TodayScreen() {
                           />
                         </Animated.View>
                       </Pressable>
-                      <Pressable hitSlop={12}>
+                      <Pressable
+                        hitSlop={12}
+                        onPress={() => current && shareAffirmation(current)}
+                      >
                         <Ionicons
                           name="share-outline"
                           size={26}
@@ -294,6 +334,16 @@ export default function TodayScreen() {
           ) : null}
         </View>
       </SafeAreaView>
+
+      <MilestoneCelebration
+        visible={milestone !== null}
+        milestone={milestone}
+        onClose={() => setMilestone(null)}
+      />
+      <StreakCalendar
+        visible={calendarOpen}
+        onClose={() => setCalendarOpen(false)}
+      />
     </View>
   );
 }

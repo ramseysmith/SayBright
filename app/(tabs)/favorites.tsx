@@ -19,10 +19,12 @@ import {
   getAffirmationById,
   getCategoryById,
 } from '../../src/utils/affirmations';
+import { useShare } from '../../src/context/ShareContext';
 
 export default function FavoritesScreen() {
   const [items, setItems] = useState<Affirmation[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const { shareAffirmation } = useShare();
 
   const load = useCallback(async () => {
     const data = await getUserData();
@@ -70,6 +72,13 @@ export default function FavoritesScreen() {
             <Text style={styles.rowAffirmation}>{item.text}</Text>
             <Text style={styles.rowCategory}>{category?.name ?? ''}</Text>
           </View>
+          <Pressable
+            hitSlop={12}
+            onPress={() => shareAffirmation(item)}
+            style={styles.rowShare}
+          >
+            <Ionicons name="share-outline" size={22} color={COLORS.textSecondary} />
+          </Pressable>
           <Pressable hitSlop={12} onPress={() => onRemove(item.id)}>
             <Ionicons name="heart" size={22} color={COLORS.warmCoral} />
           </Pressable>
@@ -130,6 +139,7 @@ const styles = StyleSheet.create({
   },
   rowEmoji: { fontSize: 24, marginRight: SPACING.md },
   rowText: { flex: 1, marginRight: SPACING.md },
+  rowShare: { marginRight: SPACING.md },
   rowAffirmation: {
     fontFamily: FONTS.displayRegular,
     fontSize: FONT_SIZES.subtitle,

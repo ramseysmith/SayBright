@@ -10,20 +10,44 @@ import {
   Linking,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { CATEGORIES } from '../../src/data/affirmations';
 import {
   getUserData,
   setSelectedCategories,
+  updateUserData,
 } from '../../src/services/storage';
 import { useToast } from '../../src/components/Toast';
 import { CategoryPicker } from '../../src/components/CategoryPicker';
 import { usePremium } from '../../src/context/PremiumContext';
 import { restorePurchases } from '../../src/services/purchases';
+import {
+  cancelAllReminders,
+  getRandomNotificationAffirmation,
+  requestNotificationPermissions,
+  scheduleDailyReminder,
+} from '../../src/services/notifications';
+import { getAffirmationsByCategories } from '../../src/utils/affirmations';
+
+function parseHHMM(value: string): { hour: number; minute: number } {
+  const [h, m] = value.split(':').map((v) => parseInt(v, 10));
+  return { hour: isNaN(h) ? 8 : h, minute: isNaN(m) ? 0 : m };
+}
+
+function formatTimeDisplay(value: string): string {
+  const { hour, minute } = parseHHMM(value);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const h12 = hour % 12 === 0 ? 12 : hour % 12;
+  return `${h12}:${String(minute).padStart(2, '0')} ${ampm}`;
+}
 
 export default function SettingsScreen() {
   const toast = useToast();
@@ -33,10 +57,15 @@ export default function SettingsScreen() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState<string[]>([]);
   const [restoring, setRestoring] = useState(false);
+  const [reminderEnabled, setReminderEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState('08:00');
+  const [timePickerOpen, setTimePickerOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const data = await getUserData();
     setSelected(data.preferences.selectedCategories);
+    setReminderEnabled(data.preferences.reminderEnabled);
+    setReminderTime(data.preferences.reminderTime);
   }, []);
 
   useEffect(() => {
@@ -64,11 +93,82 @@ export default function SettingsScreen() {
     setPickerOpen(false);
   };
 
-  const onRemindersPress = () => {
+  const scheduleWithCurrentSelection = async (
+    hour: number,
+    minute: number
+  ) => {
+    const data = await getUserData();
+    const pool = getAffirmationsByCategories(
+      data.preferences.selectedCategories
+    );
+    const text = getRandomNotificationAffirmation(pool);
+    await scheduleDailyReminder(hour, minute, text);
+  };
+
+  const handleReminderToggle = async (next: boolean) => {
     if (!isPremium) {
       router.push('/paywall');
+      return;
+    }
+    if (next) {
+      const granted = await requestNotificationPermissions();
+      if (!granted) {
+        Alert.alert(
+          'Notifications are disabled for SayBright',
+          'Please enable them in your device settings to receive daily reminders.'
+        );
+        return;
+      }
+      const { hour, minute } = parseHHMM(reminderTime);
+      await scheduleWithCurrentSelection(hour, minute);
+      await updateUserData((current) => ({
+        ...current,
+        preferences: { ...current.preferences, reminderEnabled: true },
+      }));
+      setReminderEnabled(true);
+      toast.show('Daily reminder scheduled.');
     } else {
-      toast.show('Reminder settings coming soon.');
+      await cancelAllReminders();
+      await updateUserData((current) => ({
+        ...current,
+        preferences: { ...current.preferences, reminderEnabled: false },
+      }));
+      setReminderEnabled(false);
+    }
+  };
+
+  const handleTimeRowPress = () => {
+    if (!isPremium) {
+      router.push('/paywall');
+      return;
+    }
+    if (!reminderEnabled) {
+      toast.show('Turn on Reminders to set the time.');
+      return;
+    }
+    setTimePickerOpen(true);
+  };
+
+  const onTimeChange = async (
+    event: DateTimePickerEvent,
+    date?: Date
+  ) => {
+    if (Platform.OS === 'android') {
+      setTimePickerOpen(false);
+    }
+    if (event.type === 'dismissed' || !date) {
+      return;
+    }
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+    const formatted = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+    setReminderTime(formatted);
+    await updateUserData((current) => ({
+      ...current,
+      preferences: { ...current.preferences, reminderTime: formatted },
+    }));
+    if (reminderEnabled) {
+      await scheduleWithCurrentSelection(hour, minute);
     }
   };
 
@@ -115,10 +215,17 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Preferences" />
         <View style={styles.section}>
-          <Pressable onPress={onRemindersPress} style={styles.row}>
+          <Pressable
+            onPress={() => {
+              if (!isPremium) router.push('/paywall');
+            }}
+            style={styles.row}
+          >
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>Reminders</Text>
-              <Text style={styles.rowSubtitle}>Daily affirmation push, 8:00 AM</Text>
+              <Text style={styles.rowSubtitle}>
+                Daily affirmation push, {formatTimeDisplay(reminderTime)}
+              </Text>
             </View>
             <View style={styles.rowAccessory}>
               {!isPremium ? (
@@ -127,12 +234,31 @@ export default function SettingsScreen() {
                 </View>
               ) : null}
               <Switch
-                value={false}
+                value={isPremium ? reminderEnabled : false}
                 disabled={!isPremium}
+                onValueChange={handleReminderToggle}
                 trackColor={{ true: COLORS.primaryGold, false: '#D1D5DB' }}
               />
             </View>
           </Pressable>
+          {isPremium ? (
+            <>
+              <View style={styles.divider} />
+              <Pressable onPress={handleTimeRowPress} style={styles.row}>
+                <View style={styles.rowMain}>
+                  <Text style={styles.rowTitle}>Reminder Time</Text>
+                  <Text style={styles.rowSubtitle}>
+                    {formatTimeDisplay(reminderTime)}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={COLORS.textSecondary}
+                />
+              </Pressable>
+            </>
+          ) : null}
           <View style={styles.divider} />
           <Pressable onPress={openPicker} style={styles.row}>
             <View style={styles.rowMain}>
@@ -246,6 +372,36 @@ export default function SettingsScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
+
+      {timePickerOpen ? (
+        <View
+          style={
+            Platform.OS === 'ios'
+              ? styles.iosTimePickerWrap
+              : styles.androidPickerInline
+          }
+        >
+          <DateTimePicker
+            value={(() => {
+              const { hour, minute } = parseHHMM(reminderTime);
+              const d = new Date();
+              d.setHours(hour, minute, 0, 0);
+              return d;
+            })()}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onTimeChange}
+          />
+          {Platform.OS === 'ios' ? (
+            <Pressable
+              onPress={() => setTimePickerOpen(false)}
+              style={styles.iosTimePickerDone}
+            >
+              <Text style={styles.iosTimePickerDoneText}>Done</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -383,5 +539,30 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.lg,
     textAlign: 'center',
+  },
+  iosTimePickerWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: COLORS.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.07)',
+    paddingBottom: SPACING.lg,
+  },
+  iosTimePickerDone: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.sm,
+  },
+  iosTimePickerDoneText: {
+    fontFamily: FONTS.bodyBold,
+    color: COLORS.primaryGold,
+    fontSize: FONT_SIZES.body,
+  },
+  androidPickerInline: {
+    position: 'absolute',
+    width: 0,
+    height: 0,
   },
 });
