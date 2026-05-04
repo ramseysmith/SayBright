@@ -1,5 +1,331 @@
-import { Placeholder } from '../../src/components/Placeholder';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Pressable,
+  ScrollView,
+  Switch,
+  Modal,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from 'expo-router';
+import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
+import { CATEGORIES } from '../../src/data/affirmations';
+import {
+  getUserData,
+  setSelectedCategories,
+} from '../../src/services/storage';
+import { useToast } from '../../src/components/Toast';
+import { CategoryPicker } from '../../src/components/CategoryPicker';
 
 export default function SettingsScreen() {
-  return <Placeholder title="Settings" subtitle="Coming soon." />;
+  const toast = useToast();
+  const [selected, setSelected] = useState<string[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [draftSelected, setDraftSelected] = useState<string[]>([]);
+  const isPremium = false;
+
+  const refresh = useCallback(async () => {
+    const data = await getUserData();
+    setSelected(data.preferences.selectedCategories);
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh])
+  );
+
+  const openPicker = () => {
+    setDraftSelected(selected);
+    setPickerOpen(true);
+  };
+
+  const savePicker = async () => {
+    if (draftSelected.length < 1) {
+      toast.show('Pick at least one category.');
+      return;
+    }
+    await setSelectedCategories(draftSelected);
+    setSelected(draftSelected);
+    setPickerOpen(false);
+  };
+
+  const showPremiumToast = () => toast.show('Available with SayBright Premium');
+  const showSoonToast = () => toast.show('Coming soon.');
+
+  const selectedEmojis = selected
+    .map((id) => CATEGORIES.find((c) => c.id === id)?.icon ?? '')
+    .filter(Boolean)
+    .join('  ');
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.screenTitle}>Settings</Text>
+
+        <SectionHeader title="Preferences" />
+        <View style={styles.section}>
+          <Pressable onPress={showPremiumToast} style={styles.row}>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>Reminders</Text>
+              <Text style={styles.rowSubtitle}>Daily affirmation push, 8:00 AM</Text>
+            </View>
+            <View style={styles.rowAccessory}>
+              <View style={styles.premiumPill}>
+                <Text style={styles.premiumPillText}>Premium</Text>
+              </View>
+              <Switch
+                value={false}
+                disabled
+                trackColor={{ true: COLORS.primaryGold, false: '#D1D5DB' }}
+              />
+            </View>
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={openPicker} style={styles.row}>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>Categories</Text>
+              <Text style={styles.rowSubtitle}>{selectedEmojis || 'None'}</Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.textSecondary}
+            />
+          </Pressable>
+        </View>
+
+        <SectionHeader title="Subscription" />
+        <View style={styles.section}>
+          <Pressable onPress={showSoonToast} style={styles.row}>
+            <Text style={styles.rowEmoji}>✨</Text>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>SayBright Premium</Text>
+              <Text style={styles.rowSubtitle}>
+                Unlock all categories, widgets, and more.
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.textSecondary}
+            />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={showSoonToast} style={styles.row}>
+            <Ionicons
+              name="refresh-circle-outline"
+              size={22}
+              color={COLORS.textSecondary}
+              style={styles.rowIcon}
+            />
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>Restore Purchases</Text>
+            </View>
+          </Pressable>
+        </View>
+
+        <SectionHeader title="About" />
+        <View style={styles.section}>
+          <SettingsRow
+            iconName="star-outline"
+            title="Rate SayBright"
+            onPress={showSoonToast}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            iconName="share-outline"
+            title="Share SayBright"
+            onPress={showSoonToast}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            iconName="document-text-outline"
+            title="Privacy Policy"
+            onPress={showSoonToast}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
+            iconName="document-text-outline"
+            title="Terms of Service"
+            onPress={showSoonToast}
+          />
+        </View>
+
+        <Text style={styles.footer}>SayBright v1.0.0</Text>
+      </ScrollView>
+
+      <Modal
+        visible={pickerOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <SafeAreaView style={styles.modalContainer} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Pressable onPress={() => setPickerOpen(false)} hitSlop={12}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </Pressable>
+            <Text style={styles.modalTitle}>Categories</Text>
+            <Pressable onPress={savePicker} hitSlop={12}>
+              <Text style={styles.modalSave}>Save</Text>
+            </Pressable>
+          </View>
+          <ScrollView contentContainerStyle={styles.modalContent}>
+            <Text style={styles.modalSubtitle}>
+              Pick the categories that show up on your Today tab.
+            </Text>
+            <CategoryPicker
+              selectedIds={draftSelected}
+              onChange={setDraftSelected}
+              isPremium={isPremium}
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+    </SafeAreaView>
+  );
 }
+
+function SectionHeader({ title }: { title: string }) {
+  return <Text style={styles.sectionHeader}>{title}</Text>;
+}
+
+function SettingsRow({
+  iconName,
+  title,
+  onPress,
+}: {
+  iconName: keyof typeof Ionicons.glyphMap;
+  title: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable onPress={onPress} style={styles.row}>
+      <Ionicons
+        name={iconName}
+        size={22}
+        color={COLORS.textSecondary}
+        style={styles.rowIcon}
+      />
+      <View style={styles.rowMain}>
+        <Text style={styles.rowTitle}>{title}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: COLORS.cream },
+  scrollContent: { paddingBottom: SPACING.xxl },
+  screenTitle: {
+    fontFamily: FONTS.displayBold,
+    fontSize: FONT_SIZES.title,
+    color: COLORS.textPrimary,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.lg,
+  },
+  sectionHeader: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  section: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: SPACING.md,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 14,
+  },
+  rowIcon: { marginRight: SPACING.md },
+  rowEmoji: { fontSize: 22, marginRight: SPACING.md },
+  rowMain: { flex: 1 },
+  rowTitle: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textPrimary,
+  },
+  rowSubtitle: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  rowAccessory: { flexDirection: 'row', alignItems: 'center' },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(0,0,0,0.07)',
+    marginLeft: SPACING.md,
+  },
+  premiumPill: {
+    backgroundColor: COLORS.primaryGold,
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginRight: SPACING.sm,
+  },
+  premiumPillText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 11,
+    color: COLORS.white,
+  },
+  footer: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    marginTop: SPACING.xl,
+  },
+  modalContainer: { flex: 1, backgroundColor: COLORS.cream },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.07)',
+  },
+  modalTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textPrimary,
+  },
+  modalCancel: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textSecondary,
+  },
+  modalSave: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.primaryGold,
+  },
+  modalContent: { padding: SPACING.lg },
+  modalSubtitle: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.lg,
+    textAlign: 'center',
+  },
+});

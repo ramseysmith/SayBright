@@ -331,12 +331,3 @@ export const AFFIRMATIONS: Affirmation[] = [
   ...buildAffirmations('calm', CALM_TEXTS, true),
   ...buildAffirmations('creativity', CREATIVITY_TEXTS, true),
 ];
-
-export function getAffirmationsByCategories(categoryIds: string[]): Affirmation[] {
-  if (categoryIds.length === 0) return AFFIRMATIONS;
-  return AFFIRMATIONS.filter((a) => categoryIds.includes(a.categoryId));
-}
-
-export function getCategoryById(id: string): Category | undefined {
-  return CATEGORIES.find((c) => c.id === id);
-}

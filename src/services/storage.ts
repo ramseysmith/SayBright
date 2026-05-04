@@ -16,6 +16,11 @@ export interface UserData {
   };
   sessionCount: number;
   lastReviewPrompt: string | null;
+  dailyUsage: {
+    date: string;
+    todaySwipeCount: number;
+    browseViewCount: number;
+  };
 }
 
 const STORAGE_KEY = '@saybright_user_data';
@@ -36,13 +41,36 @@ const DEFAULT_USER_DATA: UserData = {
   },
   sessionCount: 0,
   lastReviewPrompt: null,
+  dailyUsage: {
+    date: '',
+    todaySwipeCount: 0,
+    browseViewCount: 0,
+  },
 };
+
+function getTodayKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 export async function getUserData(): Promise<UserData> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (raw) {
-      return { ...DEFAULT_USER_DATA, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_USER_DATA,
+        ...parsed,
+        streak: { ...DEFAULT_USER_DATA.streak, ...(parsed.streak ?? {}) },
+        preferences: {
+          ...DEFAULT_USER_DATA.preferences,
+          ...(parsed.preferences ?? {}),
+        },
+        dailyUsage: {
+          ...DEFAULT_USER_DATA.dailyUsage,
+          ...(parsed.dailyUsage ?? {}),
+        },
+      };
     }
     return DEFAULT_USER_DATA;
   } catch {
@@ -65,4 +93,74 @@ export async function updateUserData(
   const updated = updater(current);
   await setUserData(updated);
   return updated;
+}
+
+export async function getDailyUsage(): Promise<{
+  todaySwipeCount: number;
+  browseViewCount: number;
+}> {
+  const data = await getUserData();
+  const today = getTodayKey();
+  if (data.dailyUsage.date !== today) {
+    const updated: UserData = {
+      ...data,
+      dailyUsage: { date: today, todaySwipeCount: 0, browseViewCount: 0 },
+    };
+    await setUserData(updated);
+    return { todaySwipeCount: 0, browseViewCount: 0 };
+  }
+  return {
+    todaySwipeCount: data.dailyUsage.todaySwipeCount,
+    browseViewCount: data.dailyUsage.browseViewCount,
+  };
+}
+
+export async function incrementSwipeCount(): Promise<number> {
+  const data = await getUserData();
+  const today = getTodayKey();
+  const usage =
+    data.dailyUsage.date === today
+      ? { ...data.dailyUsage }
+      : { date: today, todaySwipeCount: 0, browseViewCount: 0 };
+  usage.todaySwipeCount += 1;
+  await setUserData({ ...data, dailyUsage: usage });
+  return usage.todaySwipeCount;
+}
+
+export async function incrementBrowseCount(): Promise<number> {
+  const data = await getUserData();
+  const today = getTodayKey();
+  const usage =
+    data.dailyUsage.date === today
+      ? { ...data.dailyUsage }
+      : { date: today, todaySwipeCount: 0, browseViewCount: 0 };
+  usage.browseViewCount += 1;
+  await setUserData({ ...data, dailyUsage: usage });
+  return usage.browseViewCount;
+}
+
+export async function toggleFavorite(affirmationId: string): Promise<string[]> {
+  const data = await getUserData();
+  const isFav = data.favorites.includes(affirmationId);
+  const favorites = isFav
+    ? data.favorites.filter((id) => id !== affirmationId)
+    : [affirmationId, ...data.favorites];
+  await setUserData({ ...data, favorites });
+  return favorites;
+}
+
+export async function setSelectedCategories(
+  categoryIds: string[]
+): Promise<void> {
+  await updateUserData((current) => ({
+    ...current,
+    preferences: { ...current.preferences, selectedCategories: categoryIds },
+  }));
+}
+
+export async function setHasSeenOnboarding(value: boolean): Promise<void> {
+  await updateUserData((current) => ({
+    ...current,
+    preferences: { ...current.preferences, hasSeenOnboarding: value },
+  }));
 }

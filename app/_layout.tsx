@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -14,7 +14,8 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 import { COLORS } from '../src/constants/theme';
-import { updateUserData } from '../src/services/storage';
+import { getUserData, updateUserData } from '../src/services/storage';
+import { ToastProvider } from '../src/components/Toast';
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -25,14 +26,34 @@ export default function RootLayout() {
     'DMSans-Bold': DMSans_700Bold,
   });
 
+  const [bootChecked, setBootChecked] = useState(false);
+  const [hasSeenOnboarding, setSeen] = useState<boolean | null>(null);
+  const segments = useSegments();
+  const router = useRouter();
+
   useEffect(() => {
-    updateUserData((current) => ({
-      ...current,
-      sessionCount: current.sessionCount + 1,
-    }));
+    (async () => {
+      await updateUserData((current) => ({
+        ...current,
+        sessionCount: current.sessionCount + 1,
+      }));
+      const data = await getUserData();
+      setSeen(data.preferences.hasSeenOnboarding);
+      setBootChecked(true);
+    })();
   }, []);
 
-  if (!fontsLoaded) {
+  useEffect(() => {
+    if (!bootChecked || hasSeenOnboarding === null) return;
+    const inOnboarding = segments[0] === 'onboarding';
+    if (!hasSeenOnboarding && !inOnboarding) {
+      router.replace('/onboarding');
+    } else if (hasSeenOnboarding && inOnboarding) {
+      router.replace('/(tabs)');
+    }
+  }, [bootChecked, hasSeenOnboarding, segments, router]);
+
+  if (!fontsLoaded || !bootChecked) {
     return (
       <View style={styles.loading}>
         <ActivityIndicator size="large" color={COLORS.primaryGold} />
@@ -43,9 +64,19 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        </Stack>
+        <ToastProvider>
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="onboarding"
+              options={{ headerShown: false, gestureEnabled: false }}
+            />
+            <Stack.Screen
+              name="category/[id]"
+              options={{ headerShown: false, presentation: 'card' }}
+            />
+          </Stack>
+        </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
