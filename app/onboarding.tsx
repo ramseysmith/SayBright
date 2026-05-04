@@ -122,6 +122,7 @@ export default function OnboardingScreen() {
               <FocusSlide
                 selected={selected}
                 onChange={setSelected}
+                onPremiumTap={() => router.push('/paywall')}
               />
             );
           }
@@ -203,9 +204,11 @@ function IntroSlide({ slide }: { slide: Slide }) {
 function FocusSlide({
   selected,
   onChange,
+  onPremiumTap,
 }: {
   selected: string[];
   onChange: (ids: string[]) => void;
+  onPremiumTap: () => void;
 }) {
   return (
     <View style={[styles.slide, { backgroundColor: COLORS.cream }]}>
@@ -232,6 +235,7 @@ function FocusSlide({
               onChange={onChange}
               isPremium={false}
               maxSelections={4}
+              onLockedTap={onPremiumTap}
             />
           </View>
         </ScrollView>

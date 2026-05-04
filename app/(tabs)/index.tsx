@@ -22,6 +22,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
 import {
   getUserData,
@@ -35,6 +36,8 @@ import {
   shuffle,
 } from '../../src/utils/affirmations';
 import { getTimeOfDay } from '../../src/utils/time';
+import { usePremium } from '../../src/context/PremiumContext';
+import { preloadInterstitial, showInterstitial } from '../../src/services/ads';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FREE_DAILY_SWIPES = 5;
@@ -45,9 +48,11 @@ export default function TodayScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [swipeCount, setSwipeCount] = useState(0);
+  const [sessionSwipes, setSessionSwipes] = useState(0);
   const [paywall, setPaywall] = useState(false);
   const [loading, setLoading] = useState(true);
-  const isPremium = false;
+  const { isPremium } = usePremium();
+  const router = useRouter();
 
   const { period, gradient } = useMemo(() => getTimeOfDay(), []);
   const textColor = gradient.textColor;
@@ -90,6 +95,12 @@ export default function TodayScreen() {
     };
   }, [opacity, scale]);
 
+  useEffect(() => {
+    if (!isPremium) {
+      preloadInterstitial();
+    }
+  }, [isPremium]);
+
   const lightHaptic = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   };
@@ -106,6 +117,15 @@ export default function TodayScreen() {
       }
       setCurrentIndex((i) => (pool.length === 0 ? 0 : (i + 1) % pool.length));
       incrementSwipeCount().then((next) => setSwipeCount(next));
+      if (!isPremium) {
+        setSessionSwipes((s) => {
+          const next = s + 1;
+          if (next > 0 && next % 3 === 0) {
+            showInterstitial();
+          }
+          return next;
+        });
+      }
     } else {
       if (paywall) {
         setPaywall(false);
@@ -201,6 +221,16 @@ export default function TodayScreen() {
       />
       <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
         <View style={styles.header}>
+          {!isPremium ? (
+            <Pressable
+              onPress={() => router.push('/paywall')}
+              style={styles.goPremiumPill}
+            >
+              <Text style={styles.goPremiumText}>✨ Go Premium</Text>
+            </Pressable>
+          ) : (
+            <View />
+          )}
           <View style={styles.streakBadge}>
             <Text style={[styles.streakText, { color: textColor }]}>🔥 0</Text>
           </View>
@@ -213,7 +243,11 @@ export default function TodayScreen() {
             <GestureDetector gesture={pan}>
               <Animated.View style={[styles.card, cardStyle]}>
                 {paywall ? (
-                  <PaywallCard textColor={textColor} subtleTextColor={subtleTextColor} />
+                  <PaywallCard
+                    textColor={textColor}
+                    subtleTextColor={subtleTextColor}
+                    onSeePlans={() => router.push('/paywall')}
+                  />
                 ) : current ? (
                   <>
                     {category ? (
@@ -267,9 +301,11 @@ export default function TodayScreen() {
 function PaywallCard({
   textColor,
   subtleTextColor,
+  onSeePlans,
 }: {
   textColor: string;
   subtleTextColor: string;
+  onSeePlans: () => void;
 }) {
   return (
     <View style={styles.paywallInner}>
@@ -279,7 +315,10 @@ function PaywallCard({
       <Text style={[styles.paywallBody, { color: subtleTextColor }]}>
         Unlock unlimited with SayBright Premium.
       </Text>
-      <Pressable style={[styles.paywallCta, { borderColor: textColor }]}>
+      <Pressable
+        onPress={onSeePlans}
+        style={[styles.paywallCta, { borderColor: textColor }]}
+      >
         <Text style={[styles.paywallCtaText, { color: textColor }]}>
           See Plans
         </Text>
@@ -296,9 +335,21 @@ const styles = StyleSheet.create({
   safe: { flex: 1 },
   header: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.sm,
+  },
+  goPremiumPill: {
+    backgroundColor: COLORS.primaryGold,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  goPremiumText: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 11,
+    color: COLORS.white,
   },
   streakBadge: {
     paddingHorizontal: SPACING.md,

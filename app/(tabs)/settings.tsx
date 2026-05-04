@@ -7,10 +7,13 @@ import {
   ScrollView,
   Switch,
   Modal,
+  Linking,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { CATEGORIES } from '../../src/data/affirmations';
 import {
@@ -19,13 +22,17 @@ import {
 } from '../../src/services/storage';
 import { useToast } from '../../src/components/Toast';
 import { CategoryPicker } from '../../src/components/CategoryPicker';
+import { usePremium } from '../../src/context/PremiumContext';
+import { restorePurchases } from '../../src/services/purchases';
 
 export default function SettingsScreen() {
   const toast = useToast();
+  const router = useRouter();
+  const { isPremium, refreshPremiumStatus } = usePremium();
   const [selected, setSelected] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState<string[]>([]);
-  const isPremium = false;
+  const [restoring, setRestoring] = useState(false);
 
   const refresh = useCallback(async () => {
     const data = await getUserData();
@@ -57,7 +64,43 @@ export default function SettingsScreen() {
     setPickerOpen(false);
   };
 
-  const showPremiumToast = () => toast.show('Available with SayBright Premium');
+  const onRemindersPress = () => {
+    if (!isPremium) {
+      router.push('/paywall');
+    } else {
+      toast.show('Reminder settings coming soon.');
+    }
+  };
+
+  const onPremiumRowPress = () => {
+    if (isPremium) {
+      const url =
+        Platform.OS === 'ios'
+          ? 'https://apps.apple.com/account/subscriptions'
+          : 'https://play.google.com/store/account/subscriptions';
+      Linking.openURL(url).catch(() => {
+        toast.show('Could not open subscription settings.');
+      });
+    } else {
+      router.push('/paywall');
+    }
+  };
+
+  const onRestore = async () => {
+    setRestoring(true);
+    try {
+      const ok = await restorePurchases();
+      if (ok) {
+        await refreshPremiumStatus();
+        toast.show('Purchases restored successfully.');
+      } else {
+        toast.show('No previous purchases found.');
+      }
+    } finally {
+      setRestoring(false);
+    }
+  };
+
   const showSoonToast = () => toast.show('Coming soon.');
 
   const selectedEmojis = selected
@@ -72,18 +115,20 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Preferences" />
         <View style={styles.section}>
-          <Pressable onPress={showPremiumToast} style={styles.row}>
+          <Pressable onPress={onRemindersPress} style={styles.row}>
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>Reminders</Text>
               <Text style={styles.rowSubtitle}>Daily affirmation push, 8:00 AM</Text>
             </View>
             <View style={styles.rowAccessory}>
-              <View style={styles.premiumPill}>
-                <Text style={styles.premiumPillText}>Premium</Text>
-              </View>
+              {!isPremium ? (
+                <View style={styles.premiumPill}>
+                  <Text style={styles.premiumPillText}>Premium</Text>
+                </View>
+              ) : null}
               <Switch
                 value={false}
-                disabled
+                disabled={!isPremium}
                 trackColor={{ true: COLORS.primaryGold, false: '#D1D5DB' }}
               />
             </View>
@@ -104,12 +149,16 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Subscription" />
         <View style={styles.section}>
-          <Pressable onPress={showSoonToast} style={styles.row}>
+          <Pressable onPress={onPremiumRowPress} style={styles.row}>
             <Text style={styles.rowEmoji}>✨</Text>
             <View style={styles.rowMain}>
-              <Text style={styles.rowTitle}>SayBright Premium</Text>
+              <Text style={styles.rowTitle}>
+                {isPremium ? 'Premium Active ✨' : 'SayBright Premium'}
+              </Text>
               <Text style={styles.rowSubtitle}>
-                Unlock all categories, widgets, and more.
+                {isPremium
+                  ? 'Manage your subscription in the App Store.'
+                  : 'Unlock all categories, widgets, and more.'}
               </Text>
             </View>
             <Ionicons
@@ -119,7 +168,7 @@ export default function SettingsScreen() {
             />
           </Pressable>
           <View style={styles.divider} />
-          <Pressable onPress={showSoonToast} style={styles.row}>
+          <Pressable onPress={onRestore} disabled={restoring} style={styles.row}>
             <Ionicons
               name="refresh-circle-outline"
               size={22}
@@ -129,6 +178,9 @@ export default function SettingsScreen() {
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>Restore Purchases</Text>
             </View>
+            {restoring ? (
+              <ActivityIndicator color={COLORS.textSecondary} />
+            ) : null}
           </Pressable>
         </View>
 
@@ -186,6 +238,10 @@ export default function SettingsScreen() {
               selectedIds={draftSelected}
               onChange={setDraftSelected}
               isPremium={isPremium}
+              onLockedTap={() => {
+                setPickerOpen(false);
+                router.push('/paywall');
+              }}
             />
           </ScrollView>
         </SafeAreaView>

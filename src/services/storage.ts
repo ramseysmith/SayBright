@@ -21,6 +21,8 @@ export interface UserData {
     todaySwipeCount: number;
     browseViewCount: number;
   };
+  cachedPremiumStatus: boolean;
+  lastPremiumCheck: string | null;
 }
 
 const STORAGE_KEY = '@saybright_user_data';
@@ -46,6 +48,8 @@ const DEFAULT_USER_DATA: UserData = {
     todaySwipeCount: 0,
     browseViewCount: 0,
   },
+  cachedPremiumStatus: false,
+  lastPremiumCheck: null,
 };
 
 function getTodayKey(): string {
@@ -163,4 +167,17 @@ export async function setHasSeenOnboarding(value: boolean): Promise<void> {
     ...current,
     preferences: { ...current.preferences, hasSeenOnboarding: value },
   }));
+}
+
+export async function setCachedPremiumStatus(value: boolean): Promise<void> {
+  await updateUserData((current) => ({
+    ...current,
+    cachedPremiumStatus: value,
+    lastPremiumCheck: new Date().toISOString(),
+  }));
+}
+
+export async function getCachedPremiumStatus(): Promise<boolean> {
+  const data = await getUserData();
+  return data.cachedPremiumStatus;
 }

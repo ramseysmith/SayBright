@@ -15,12 +15,28 @@
     },
     "plugins": [
       "expo-router",
-      "expo-font"
+      "expo-font",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-8327362355420246~5390186376",
+          "iosAppId": "ca-app-pub-8327362355420246~5390186376"
+        }
+      ],
+      [
+        "expo-tracking-transparency",
+        {
+          "userTrackingPermission": "This allows SayBright to show you more relevant content and support the free version of the app."
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.saybright.app",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSUserTrackingUsageDescription": "This allows SayBright to show you more relevant content and support the free version of the app."
+      }
     },
     "android": {
       "adaptiveIcon": {

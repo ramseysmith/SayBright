@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,18 +9,37 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES, AFFIRMATIONS, Category } from '../../src/data/affirmations';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { hexWithAlpha } from '../../src/utils/affirmations';
-import { useToast } from '../../src/components/Toast';
+import { usePremium } from '../../src/context/PremiumContext';
+import { getDailyUsage } from '../../src/services/storage';
+import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
+
+const FREE_BROWSE_VIEWS = 5;
 
 export default function BrowseScreen() {
   const [query, setQuery] = useState('');
+  const [browseViews, setBrowseViews] = useState(0);
   const router = useRouter();
-  const toast = useToast();
-  const isPremium = false;
+  const { isPremium } = usePremium();
+
+  const loadUsage = useCallback(async () => {
+    const usage = await getDailyUsage();
+    setBrowseViews(usage.browseViewCount);
+  }, []);
+
+  useEffect(() => {
+    loadUsage();
+  }, [loadUsage]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadUsage();
+    }, [loadUsage])
+  );
 
   const filteredCategories = useMemo(() => {
     if (!query.trim()) return CATEGORIES;
@@ -44,7 +63,7 @@ export default function BrowseScreen() {
   const handlePress = (cat: Category) => {
     Haptics.selectionAsync();
     if (cat.isPremium && !isPremium) {
-      toast.show('Available with SayBright Premium');
+      router.push('/paywall');
       return;
     }
     router.push({ pathname: '/category/[id]', params: { id: cat.id } });
@@ -52,6 +71,8 @@ export default function BrowseScreen() {
 
   const countFor = (id: string) =>
     AFFIRMATIONS.filter((a) => a.categoryId === id).length;
+
+  const remaining = Math.max(0, FREE_BROWSE_VIEWS - browseViews);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -72,6 +93,11 @@ export default function BrowseScreen() {
           returnKeyType="search"
         />
       </View>
+      {!isPremium ? (
+        <Text style={styles.viewCounter}>
+          {remaining} of {FREE_BROWSE_VIEWS} free views today
+        </Text>
+      ) : null}
       <ScrollView
         contentContainerStyle={styles.gridContent}
         showsVerticalScrollIndicator={false}
@@ -104,6 +130,7 @@ export default function BrowseScreen() {
           ) : null}
         </View>
       </ScrollView>
+      <BannerAdWrapper />
     </SafeAreaView>
   );
 }
@@ -134,8 +161,16 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.body,
     color: COLORS.textPrimary,
   },
+  viewCounter: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+  },
   gridContent: {
     padding: SPACING.lg,
+    paddingBottom: SPACING.xl,
   },
   grid: {
     flexDirection: 'row',

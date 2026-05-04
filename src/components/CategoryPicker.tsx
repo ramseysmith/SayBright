@@ -11,6 +11,7 @@ interface CategoryPickerProps {
   onChange: (ids: string[]) => void;
   isPremium?: boolean;
   maxSelections?: number;
+  onLockedTap?: () => void;
 }
 
 export function CategoryPicker({
@@ -18,12 +19,17 @@ export function CategoryPicker({
   onChange,
   isPremium = false,
   maxSelections,
+  onLockedTap,
 }: CategoryPickerProps) {
   const toast = useToast();
 
   const handleToggle = (cat: Category) => {
     if (cat.isPremium && !isPremium) {
-      toast.show('Available with SayBright Premium');
+      if (onLockedTap) {
+        onLockedTap();
+      } else {
+        toast.show('Available with SayBright Premium');
+      }
       return;
     }
     Haptics.selectionAsync();
