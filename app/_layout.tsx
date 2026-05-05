@@ -16,6 +16,7 @@ import {
 import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import { useURL } from 'expo-linking';
 import { COLORS } from '../src/constants/theme';
 import { getUserData, updateUserData } from '../src/services/storage';
 import { ToastProvider } from '../src/components/Toast';
@@ -83,6 +84,14 @@ export default function RootLayout() {
     });
     return () => sub.remove();
   }, [router]);
+
+  const url = useURL();
+  useEffect(() => {
+    if (!url) return;
+    if (url.startsWith('saybright://today') || url.includes('/today')) {
+      router.replace('/(tabs)');
+    }
+  }, [url, router]);
 
   if (!fontsLoaded || !bootChecked) {
     return (

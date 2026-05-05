@@ -36,6 +36,7 @@ import {
   scheduleDailyReminder,
 } from '../../src/services/notifications';
 import { getAffirmationsByCategories } from '../../src/utils/affirmations';
+import { CROSS_PROMO, URLS } from '../../src/constants/urls';
 
 function parseHHMM(value: string): { hour: number; minute: number } {
   const [h, m] = value.split(':').map((v) => parseInt(v, 10));
@@ -203,6 +204,31 @@ export default function SettingsScreen() {
 
   const showSoonToast = () => toast.show('Coming soon.');
 
+  const openExternal = async (url: string) => {
+    try {
+      const ok = await Linking.canOpenURL(url);
+      if (!ok) {
+        toast.show('Could not open link.');
+        return;
+      }
+      await Linking.openURL(url);
+    } catch {
+      toast.show('Could not open link.');
+    }
+  };
+
+  const onWidgetsPress = () => {
+    if (!isPremium) {
+      router.push('/paywall');
+      return;
+    }
+    Alert.alert(
+      'Add SayBright Widget',
+      'Long press your home screen, tap the plus button in the top left, then search for SayBright.',
+      [{ text: 'Got it' }]
+    );
+  };
+
   const selectedEmojis = selected
     .map((id) => CATEGORIES.find((c) => c.id === id)?.icon ?? '')
     .filter(Boolean)
@@ -271,6 +297,34 @@ export default function SettingsScreen() {
               color={COLORS.textSecondary}
             />
           </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={onWidgetsPress} style={styles.row}>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>
+                {isPremium
+                  ? 'Add Home Screen Widget'
+                  : 'Home Screen Widgets'}
+              </Text>
+              <Text style={styles.rowSubtitle}>
+                {isPremium
+                  ? 'See affirmations at a glance.'
+                  : 'Available with Premium.'}
+              </Text>
+            </View>
+            {!isPremium ? (
+              <Ionicons
+                name="lock-closed"
+                size={18}
+                color={COLORS.textSecondary}
+              />
+            ) : (
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={COLORS.textSecondary}
+              />
+            )}
+          </Pressable>
         </View>
 
         <SectionHeader title="Subscription" />
@@ -327,14 +381,38 @@ export default function SettingsScreen() {
           <SettingsRow
             iconName="document-text-outline"
             title="Privacy Policy"
-            onPress={showSoonToast}
+            onPress={() => openExternal(URLS.privacy)}
           />
           <View style={styles.divider} />
           <SettingsRow
             iconName="document-text-outline"
             title="Terms of Service"
-            onPress={showSoonToast}
+            onPress={() => openExternal(URLS.terms)}
           />
+        </View>
+
+        <SectionHeader title="More Apps" />
+        <View style={[styles.section, styles.crossPromoSection]}>
+          {CROSS_PROMO.map((app, idx) => (
+            <View key={app.id}>
+              {idx > 0 ? <View style={styles.divider} /> : null}
+              <Pressable
+                onPress={() => openExternal(app.url)}
+                style={styles.row}
+              >
+                <Text style={styles.rowEmoji}>{app.icon}</Text>
+                <View style={styles.rowMain}>
+                  <Text style={styles.rowTitle}>{app.title}</Text>
+                  <Text style={styles.rowSubtitle}>{app.subtitle}</Text>
+                </View>
+                <Ionicons
+                  name="open-outline"
+                  size={18}
+                  color={COLORS.textSecondary}
+                />
+              </Pressable>
+            </View>
+          ))}
         </View>
 
         <Text style={styles.footer}>SayBright v1.0.0</Text>
@@ -564,5 +642,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 0,
     height: 0,
+  },
+  crossPromoSection: {
+    borderLeftWidth: 3,
+    borderLeftColor: COLORS.primaryGold,
   },
 });

@@ -43,6 +43,7 @@ import { maybeRequestReview } from '../../src/services/review';
 import { MilestoneCelebration } from '../../src/components/MilestoneCelebration';
 import { StreakCalendar } from '../../src/components/StreakCalendar';
 import { useShare } from '../../src/context/ShareContext';
+import { updateWidgetData } from '../../src/services/widgetData';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FREE_DAILY_SWIPES = 5;
@@ -226,6 +227,21 @@ export default function TodayScreen() {
   const current = pool[currentIndex];
   const isFavorited = current ? favorites.includes(current.id) : false;
   const category = current ? getCategoryById(current.categoryId) : undefined;
+
+  useEffect(() => {
+    if (!current) return;
+    const cat = getCategoryById(current.categoryId);
+    updateWidgetData(
+      {
+        affirmationText: current.text,
+        categoryEmoji: cat?.icon ?? '☀️',
+        categoryName: cat?.name ?? 'SayBright',
+        streakCount,
+        lastUpdated: new Date().toISOString(),
+      },
+      isPremium
+    );
+  }, [current, streakCount, isPremium]);
 
   const onToggleFavorite = async () => {
     if (!current || paywall) return;

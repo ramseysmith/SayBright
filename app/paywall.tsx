@@ -14,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { Linking } from 'react-native';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../src/constants/theme';
 import {
   getOfferings,
@@ -25,6 +26,7 @@ import {
 } from '../src/services/purchases';
 import { usePremium } from '../src/context/PremiumContext';
 import { useToast } from '../src/components/Toast';
+import { URLS } from '../src/constants/urls';
 
 const FEATURES = [
   'Unlimited daily affirmations',
@@ -249,11 +251,17 @@ export default function PaywallScreen() {
               </Text>
 
               <View style={styles.legalLinks}>
-                <Pressable hitSlop={8}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => Linking.openURL(URLS.terms).catch(() => {})}
+                >
                   <Text style={styles.legalLink}>Terms of Service</Text>
                 </Pressable>
                 <Text style={styles.legalDivider}>•</Text>
-                <Pressable hitSlop={8}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => Linking.openURL(URLS.privacy).catch(() => {})}
+                >
                   <Text style={styles.legalLink}>Privacy Policy</Text>
                 </Pressable>
               </View>
