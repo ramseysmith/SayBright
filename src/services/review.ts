@@ -29,6 +29,8 @@ export async function maybeRequestReview(): Promise<void> {
       ...current,
       lastReviewPrompt: new Date().toISOString(),
     }));
+    const { trackEvent } = await import('./analytics');
+    trackEvent('review_prompted');
   } catch {
     // Silently ignore: Apple rate-limits this dialog
   }

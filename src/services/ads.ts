@@ -57,6 +57,10 @@ export function showInterstitial(): boolean {
   if (isInterstitialLoaded && interstitialAd) {
     try {
       interstitialAd.show();
+      // Lazy import to avoid circular deps with analytics
+      import('./analytics').then(({ trackEvent }) => {
+        trackEvent('ad_interstitial_shown');
+      });
       return true;
     } catch {
       return false;

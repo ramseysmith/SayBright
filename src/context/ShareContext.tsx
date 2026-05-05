@@ -15,6 +15,7 @@ import { getTimeOfDay, TimeGradient } from '../utils/time';
 import { ShareCard } from '../components/ShareCard';
 import { usePremium } from './PremiumContext';
 import { useToast } from '../components/Toast';
+import { trackEvent } from '../services/analytics';
 
 interface ShareContextValue {
   shareAffirmation: (affirmation: Affirmation) => Promise<void>;
@@ -61,6 +62,10 @@ export function ShareProvider({ children }: { children: ReactNode }) {
         await Sharing.shareAsync(uri, {
           mimeType: 'image/png',
           dialogTitle: 'Share your affirmation',
+        });
+        trackEvent('affirmation_shared', {
+          affirmationId: affirmation.id,
+          isPremium,
         });
       } catch {
         toast.show('Could not generate share card.');

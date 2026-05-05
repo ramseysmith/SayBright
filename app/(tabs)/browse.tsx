@@ -12,23 +12,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES, AFFIRMATIONS, Category } from '../../src/data/affirmations';
+import { PACKS } from '../../src/data/packs';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { hexWithAlpha } from '../../src/utils/affirmations';
 import { usePremium } from '../../src/context/PremiumContext';
 import { getDailyUsage } from '../../src/services/storage';
 import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
+import { getPurchasedPacks } from '../../src/services/purchases';
 
 const FREE_BROWSE_VIEWS = 5;
 
 export default function BrowseScreen() {
   const [query, setQuery] = useState('');
   const [browseViews, setBrowseViews] = useState(0);
+  const [ownedPacks, setOwnedPacks] = useState<string[]>([]);
   const router = useRouter();
   const { isPremium } = usePremium();
 
   const loadUsage = useCallback(async () => {
     const usage = await getDailyUsage();
     setBrowseViews(usage.browseViewCount);
+    const owned = await getPurchasedPacks();
+    setOwnedPacks(owned);
   }, []);
 
   useEffect(() => {
@@ -129,11 +134,51 @@ export default function BrowseScreen() {
             <Text style={styles.emptyResult}>No matches found.</Text>
           ) : null}
         </View>
+
+        <View style={styles.packsSection}>
+          <View style={styles.packsHeaderRow}>
+            <Text style={styles.packsTitle}>Affirmation Packs</Text>
+            <Pressable hitSlop={8} onPress={() => router.push('/packs')}>
+              <Text style={styles.packsSeeAll}>See all</Text>
+            </Pressable>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.packsRow}
+          >
+            {PACKS.map((pack) => {
+              const owned = ownedPacks.includes(pack.productId);
+              return (
+                <Pressable
+                  key={pack.id}
+                  onPress={() => router.push('/packs')}
+                  style={[
+                    styles.packCard,
+                    { backgroundColor: hexWithAlpha(pack.color, 0.15) },
+                  ]}
+                >
+                  <Text style={styles.packEmoji}>{pack.emoji}</Text>
+                  <Text style={styles.packName}>{pack.name}</Text>
+                  <Text
+                    style={[
+                      styles.packPrice,
+                      owned && { color: COLORS.successGreen },
+                    ]}
+                  >
+                    {owned ? '✓ Owned' : pack.price}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       </ScrollView>
       <BannerAdWrapper />
     </SafeAreaView>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
@@ -212,5 +257,51 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyRegular,
     color: COLORS.textSecondary,
     marginTop: SPACING.xl,
+  },
+  packsSection: {
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.lg,
+  },
+  packsHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+  },
+  packsTitle: {
+    fontFamily: FONTS.displayBold,
+    fontSize: FONT_SIZES.subtitle,
+    color: COLORS.textPrimary,
+  },
+  packsSeeAll: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 14,
+    color: COLORS.primaryGold,
+  },
+  packsRow: {
+    paddingRight: SPACING.lg,
+    gap: SPACING.md,
+  },
+  packCard: {
+    width: 140,
+    padding: SPACING.md,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  packEmoji: {
+    fontSize: 32,
+    marginBottom: SPACING.xs,
+  },
+  packName: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  packPrice: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 12,
+    color: COLORS.primaryGold,
   },
 });

@@ -37,6 +37,17 @@ import {
 } from '../../src/services/notifications';
 import { getAffirmationsByCategories } from '../../src/utils/affirmations';
 import { CROSS_PROMO, URLS } from '../../src/constants/urls';
+import { getPurchasedPacks } from '../../src/services/purchases';
+import { PACKS } from '../../src/data/packs';
+import {
+  deleteRecording,
+  getRecordedAffirmationIds,
+  getRecordingUri,
+  playRecording,
+} from '../../src/services/audio';
+import { AFFIRMATIONS } from '../../src/data/affirmations';
+import { Audio } from 'expo-av';
+import { trackEvent } from '../../src/services/analytics';
 
 function parseHHMM(value: string): { hour: number; minute: number } {
   const [h, m] = value.split(':').map((v) => parseInt(v, 10));
@@ -61,12 +72,19 @@ export default function SettingsScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [ownedPackCount, setOwnedPackCount] = useState(0);
+  const [recordedIds, setRecordedIds] = useState<string[]>([]);
+  const [recordingsModalOpen, setRecordingsModalOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const data = await getUserData();
     setSelected(data.preferences.selectedCategories);
     setReminderEnabled(data.preferences.reminderEnabled);
     setReminderTime(data.preferences.reminderTime);
+    const packs = await getPurchasedPacks();
+    setOwnedPackCount(packs.length);
+    const ids = await getRecordedAffirmationIds();
+    setRecordedIds(ids);
   }, []);
 
   useEffect(() => {
@@ -127,6 +145,7 @@ export default function SettingsScreen() {
         preferences: { ...current.preferences, reminderEnabled: true },
       }));
       setReminderEnabled(true);
+      trackEvent('notification_enabled');
       toast.show('Daily reminder scheduled.');
     } else {
       await cancelAllReminders();
@@ -135,6 +154,7 @@ export default function SettingsScreen() {
         preferences: { ...current.preferences, reminderEnabled: false },
       }));
       setReminderEnabled(false);
+      trackEvent('notification_disabled');
     }
   };
 
@@ -227,6 +247,18 @@ export default function SettingsScreen() {
       'Long press your home screen, tap the plus button in the top left, then search for SayBright.',
       [{ text: 'Got it' }]
     );
+  };
+
+  const onPacksPress = () => {
+    router.push('/packs');
+  };
+
+  const onRecordingsPress = () => {
+    if (!isPremium) {
+      router.push('/paywall');
+      return;
+    }
+    setRecordingsModalOpen(true);
   };
 
   const selectedEmojis = selected
@@ -325,6 +357,32 @@ export default function SettingsScreen() {
               />
             )}
           </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={onRecordingsPress} style={styles.row}>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>My Recordings</Text>
+              <Text style={styles.rowSubtitle}>
+                {!isPremium
+                  ? 'Available with Premium.'
+                  : recordedIds.length > 0
+                    ? `${recordedIds.length} recorded`
+                    : 'Record your first affirmation.'}
+              </Text>
+            </View>
+            {!isPremium ? (
+              <Ionicons
+                name="lock-closed"
+                size={18}
+                color={COLORS.textSecondary}
+              />
+            ) : (
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={COLORS.textSecondary}
+              />
+            )}
+          </Pressable>
         </View>
 
         <SectionHeader title="Subscription" />
@@ -339,6 +397,23 @@ export default function SettingsScreen() {
                 {isPremium
                   ? 'Manage your subscription in the App Store.'
                   : 'Unlock all categories, widgets, and more.'}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.textSecondary}
+            />
+          </Pressable>
+          <View style={styles.divider} />
+          <Pressable onPress={onPacksPress} style={styles.row}>
+            <Text style={styles.rowEmoji}>📦</Text>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>Affirmation Packs</Text>
+              <Text style={styles.rowSubtitle}>
+                {ownedPackCount > 0
+                  ? `${ownedPackCount} of ${PACKS.length} owned`
+                  : 'Browse themed packs'}
               </Text>
             </View>
             <Ionicons
@@ -480,7 +555,120 @@ export default function SettingsScreen() {
           ) : null}
         </View>
       ) : null}
+
+      <RecordingsListModal
+        visible={recordingsModalOpen}
+        recordedIds={recordedIds}
+        onClose={() => setRecordingsModalOpen(false)}
+        onRefresh={refresh}
+      />
     </SafeAreaView>
+  );
+}
+
+function RecordingsListModal({
+  visible,
+  recordedIds,
+  onClose,
+  onRefresh,
+}: {
+  visible: boolean;
+  recordedIds: string[];
+  onClose: () => void;
+  onRefresh: () => Promise<void>;
+}) {
+  const [activeSound, setActiveSound] = useState<Audio.Sound | null>(null);
+
+  const onPlay = async (id: string) => {
+    if (activeSound) {
+      await activeSound.unloadAsync().catch(() => {});
+      setActiveSound(null);
+    }
+    try {
+      const sound = await playRecording(getRecordingUri(id));
+      setActiveSound(sound);
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync().catch(() => {});
+          setActiveSound(null);
+        }
+      });
+    } catch {
+      // ignore
+    }
+  };
+
+  const onDelete = async (id: string) => {
+    if (activeSound) {
+      await activeSound.unloadAsync().catch(() => {});
+      setActiveSound(null);
+    }
+    await deleteRecording(id);
+    await onRefresh();
+  };
+
+  const close = async () => {
+    if (activeSound) {
+      await activeSound.unloadAsync().catch(() => {});
+      setActiveSound(null);
+    }
+    onClose();
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={close}
+    >
+      <SafeAreaView style={styles.modalContainer} edges={['top']}>
+        <View style={styles.modalHeader}>
+          <View style={{ width: 60 }} />
+          <Text style={styles.modalTitle}>My Recordings</Text>
+          <Pressable onPress={close} hitSlop={12}>
+            <Text style={styles.modalCancel}>Done</Text>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.modalContent}>
+          {recordedIds.length === 0 ? (
+            <Text style={styles.modalSubtitle}>
+              You have not recorded any affirmations yet.
+            </Text>
+          ) : (
+            recordedIds.map((id) => {
+              const aff = AFFIRMATIONS.find((a) => a.id === id);
+              const text = aff?.text ?? id;
+              return (
+                <View key={id} style={styles.recordingRow}>
+                  <Text style={styles.recordingText} numberOfLines={2}>
+                    {text}
+                  </Text>
+                  <Pressable
+                    hitSlop={12}
+                    onPress={() => onPlay(id)}
+                    style={styles.recordingAction}
+                  >
+                    <Ionicons name="play" size={20} color={COLORS.primaryGold} />
+                  </Pressable>
+                  <Pressable
+                    hitSlop={12}
+                    onPress={() => onDelete(id)}
+                    style={styles.recordingAction}
+                  >
+                    <Ionicons
+                      name="trash-outline"
+                      size={20}
+                      color={COLORS.warmCoral}
+                    />
+                  </Pressable>
+                </View>
+              );
+            })
+          )}
+        </ScrollView>
+      </SafeAreaView>
+    </Modal>
   );
 }
 
@@ -646,5 +834,23 @@ const styles = StyleSheet.create({
   crossPromoSection: {
     borderLeftWidth: 3,
     borderLeftColor: COLORS.primaryGold,
+  },
+  recordingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: SPACING.md,
+    marginBottom: SPACING.sm,
+  },
+  recordingText: {
+    flex: 1,
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 14,
+    color: COLORS.textPrimary,
+    marginRight: SPACING.md,
+  },
+  recordingAction: {
+    paddingHorizontal: SPACING.sm,
   },
 });

@@ -18,12 +18,13 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { useURL } from 'expo-linking';
 import { COLORS } from '../src/constants/theme';
-import { getUserData, updateUserData } from '../src/services/storage';
+import { updateUserData } from '../src/services/storage';
 import { ToastProvider } from '../src/components/Toast';
 import { PremiumProvider } from '../src/context/PremiumContext';
 import { ShareProvider } from '../src/context/ShareContext';
 import { initializePurchases } from '../src/services/purchases';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
+import { trackEvent } from '../src/services/analytics';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -52,12 +53,12 @@ export default function RootLayout() {
         }
       }
       await initializePurchases();
-      await updateUserData((current) => ({
+      const updated = await updateUserData((current) => ({
         ...current,
         sessionCount: current.sessionCount + 1,
       }));
-      const data = await getUserData();
-      setSeen(data.preferences.hasSeenOnboarding);
+      trackEvent('app_open', { sessionCount: updated.sessionCount });
+      setSeen(updated.preferences.hasSeenOnboarding);
       setBootChecked(true);
     })();
   }, []);
@@ -80,6 +81,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(() => {
+      trackEvent('widget_tapped');
       router.replace('/(tabs)');
     });
     return () => sub.remove();
@@ -124,6 +126,18 @@ export default function RootLayout() {
                     presentation: 'modal',
                     gestureEnabled: true,
                   }}
+                />
+                <Stack.Screen
+                  name="packs"
+                  options={{
+                    headerShown: false,
+                    presentation: 'modal',
+                    gestureEnabled: true,
+                  }}
+                />
+                <Stack.Screen
+                  name="pack/[id]"
+                  options={{ headerShown: false, presentation: 'card' }}
                 />
               </Stack>
               {!splashDone ? (

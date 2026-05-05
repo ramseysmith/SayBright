@@ -24,6 +24,7 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
+// note: getDisplayInfo replaces getCategoryById for pack-aware lookups
 import {
   getUserData,
   incrementSwipeCount,
@@ -32,7 +33,6 @@ import {
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import {
   getAffirmationsByCategories,
-  getCategoryById,
   shuffle,
 } from '../../src/utils/affirmations';
 import { getTimeOfDay } from '../../src/utils/time';
@@ -44,6 +44,19 @@ import { MilestoneCelebration } from '../../src/components/MilestoneCelebration'
 import { StreakCalendar } from '../../src/components/StreakCalendar';
 import { useShare } from '../../src/context/ShareContext';
 import { updateWidgetData } from '../../src/services/widgetData';
+import { trackEvent } from '../../src/services/analytics';
+import { getDisplayInfo } from '../../src/utils/affirmations';
+import { getPurchasedPacks } from '../../src/services/purchases';
+import { getPackByProductId } from '../../src/data/packs';
+import {
+  deleteRecording,
+  getRecordingUri,
+  hasRecording,
+  playRecording,
+} from '../../src/services/audio';
+import { RecordingModal } from '../../src/components/RecordingModal';
+import { Audio } from 'expo-av';
+import { Alert } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FREE_DAILY_SWIPES = 5;
@@ -60,6 +73,9 @@ export default function TodayScreen() {
   const [streakCount, setStreakCount] = useState(0);
   const [milestone, setMilestone] = useState<number | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
+  const [recordingModalOpen, setRecordingModalOpen] = useState(false);
+  const [recordedIds, setRecordedIds] = useState<Set<string>>(new Set());
+  const playbackRef = useRef<Audio.Sound | null>(null);
   const { isPremium } = usePremium();
   const router = useRouter();
   const { shareAffirmation } = useShare();
@@ -90,8 +106,24 @@ export default function TodayScreen() {
     (async () => {
       const data = await getUserData();
       const selected = data.preferences.selectedCategories;
-      const candidates = getAffirmationsByCategories(selected);
-      const shuffled = shuffle(candidates.length > 0 ? candidates : AFFIRMATIONS);
+      const baseCandidates = getAffirmationsByCategories(selected);
+
+      const purchasedProductIds = await getPurchasedPacks();
+      const packAffirmations: Affirmation[] = purchasedProductIds.flatMap(
+        (productId) => {
+          const pack = getPackByProductId(productId);
+          if (!pack) return [];
+          return pack.affirmations.map((a) => ({
+            id: a.id,
+            text: a.text,
+            categoryId: pack.id,
+            isPremium: false,
+          }));
+        }
+      );
+
+      const combined = [...baseCandidates, ...packAffirmations];
+      const shuffled = shuffle(combined.length > 0 ? combined : AFFIRMATIONS);
       const today = new Date();
       const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       const swipes =
@@ -108,6 +140,7 @@ export default function TodayScreen() {
       if (!active) return;
       setStreakCount(streakResult.current);
       if (streakResult.isNewDay) {
+        trackEvent('streak_incremented', { current: streakResult.current });
         Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success
         ).catch(() => {});
@@ -116,6 +149,9 @@ export default function TodayScreen() {
           withSpring(1, { damping: 12, stiffness: 200 })
         );
         if (streakResult.milestone) {
+          trackEvent('streak_milestone', {
+            milestone: streakResult.milestone,
+          });
           setMilestone(streakResult.milestone);
         } else {
           setTimeout(() => {
@@ -226,16 +262,134 @@ export default function TodayScreen() {
 
   const current = pool[currentIndex];
   const isFavorited = current ? favorites.includes(current.id) : false;
-  const category = current ? getCategoryById(current.categoryId) : undefined;
+  const category = current ? getDisplayInfo(current.categoryId) : undefined;
+  const hasOwnRecording = current ? recordedIds.has(current.id) : false;
+
+  useEffect(() => {
+    if (current) {
+      trackEvent('affirmation_viewed', {
+        affirmationId: current.id,
+        categoryId: current.categoryId,
+      });
+    }
+  }, [current]);
 
   useEffect(() => {
     if (!current) return;
-    const cat = getCategoryById(current.categoryId);
+    let active = true;
+    (async () => {
+      const exists = await hasRecording(current.id);
+      if (!active) return;
+      setRecordedIds((prev) => {
+        const next = new Set(prev);
+        if (exists) next.add(current.id);
+        else next.delete(current.id);
+        return next;
+      });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [current]);
+
+  const stopPlayback = async () => {
+    if (playbackRef.current) {
+      try {
+        await playbackRef.current.stopAsync();
+        await playbackRef.current.unloadAsync();
+      } catch {
+        // ignore
+      }
+      playbackRef.current = null;
+    }
+  };
+
+  const onMicPress = async () => {
+    if (!current) return;
+    if (!isPremium) {
+      router.push('/paywall');
+      return;
+    }
+    if (hasOwnRecording) {
+      try {
+        await stopPlayback();
+        const uri = getRecordingUri(current.id);
+        const sound = await playRecording(uri);
+        playbackRef.current = sound;
+        trackEvent('recording_played', { affirmationId: current.id });
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            sound.unloadAsync().catch(() => {});
+            if (playbackRef.current === sound) playbackRef.current = null;
+          }
+        });
+      } catch {
+        Alert.alert('Playback failed', 'Please try again.');
+      }
+    } else {
+      setRecordingModalOpen(true);
+    }
+  };
+
+  const onMicLongPress = () => {
+    if (!current || !isPremium || !hasOwnRecording) return;
+    Alert.alert(
+      'Recording options',
+      undefined,
+      [
+        {
+          text: 'Play',
+          onPress: () => onMicPress(),
+        },
+        {
+          text: 'Re record',
+          onPress: async () => {
+            await stopPlayback();
+            await deleteRecording(current.id);
+            setRecordedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(current.id);
+              return next;
+            });
+            setRecordingModalOpen(true);
+          },
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await stopPlayback();
+            await deleteRecording(current.id);
+            setRecordedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(current.id);
+              return next;
+            });
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ]
+    );
+  };
+
+  useEffect(() => {
+    return () => {
+      stopPlayback();
+    };
+  }, []);
+
+  useEffect(() => {
+    stopPlayback();
+  }, [currentIndex]);
+
+  useEffect(() => {
+    if (!current) return;
+    const display = getDisplayInfo(current.categoryId);
     updateWidgetData(
       {
         affirmationText: current.text,
-        categoryEmoji: cat?.icon ?? '☀️',
-        categoryName: cat?.name ?? 'SayBright',
+        categoryEmoji: display?.icon ?? '☀️',
+        categoryName: display?.name ?? 'SayBright',
         streakCount,
         lastUpdated: new Date().toISOString(),
       },
@@ -252,6 +406,10 @@ export default function TodayScreen() {
     );
     const updated = await toggleFavorite(current.id);
     setFavorites(updated);
+    trackEvent('affirmation_favorited', {
+      affirmationId: current.id,
+      totalFavorites: updated.length,
+    });
   };
 
   const indicatorText =
@@ -328,6 +486,30 @@ export default function TodayScreen() {
                       </Pressable>
                       <Pressable
                         hitSlop={12}
+                        onPress={onMicPress}
+                        onLongPress={onMicLongPress}
+                      >
+                        <View style={{ position: 'relative' }}>
+                          <Ionicons
+                            name={hasOwnRecording ? 'mic' : 'mic-outline'}
+                            size={26}
+                            color={
+                              hasOwnRecording ? COLORS.primaryGold : textColor
+                            }
+                          />
+                          {!isPremium ? (
+                            <View style={styles.micLockBadge}>
+                              <Ionicons
+                                name="lock-closed"
+                                size={10}
+                                color={COLORS.white}
+                              />
+                            </View>
+                          ) : null}
+                        </View>
+                      </Pressable>
+                      <Pressable
+                        hitSlop={12}
                         onPress={() => current && shareAffirmation(current)}
                       >
                         <Ionicons
@@ -359,6 +541,18 @@ export default function TodayScreen() {
       <StreakCalendar
         visible={calendarOpen}
         onClose={() => setCalendarOpen(false)}
+      />
+      <RecordingModal
+        visible={recordingModalOpen}
+        affirmationId={current?.id ?? null}
+        affirmationText={current?.text ?? ''}
+        onClose={() => setRecordingModalOpen(false)}
+        onSaved={() => {
+          if (current) {
+            setRecordedIds((prev) => new Set(prev).add(current.id));
+            trackEvent('recording_created', { affirmationId: current.id });
+          }
+        }}
       />
     </View>
   );
@@ -496,5 +690,16 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyRegular,
     fontSize: FONT_SIZES.caption,
     marginTop: SPACING.lg,
+  },
+  micLockBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

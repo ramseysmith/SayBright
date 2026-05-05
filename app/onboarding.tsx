@@ -22,6 +22,7 @@ import {
   setHasSeenOnboarding,
   setSelectedCategories,
 } from '../src/services/storage';
+import { trackEvent } from '../src/services/analytics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -96,6 +97,9 @@ export default function OnboardingScreen() {
     if (!canProceedFocus) return;
     await setSelectedCategories(selected);
     await setHasSeenOnboarding(true);
+    trackEvent('onboarding_complete', {
+      categoriesSelected: selected.length,
+    });
     router.replace('/(tabs)');
   };
 

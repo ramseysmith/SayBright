@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -14,49 +14,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Affirmation } from '../../src/data/affirmations';
+import { getPackById, PackAffirmation } from '../../src/data/packs';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
-import {
-  getAffirmationsByCategory,
-  getCategoryById,
-  hexWithAlpha,
-} from '../../src/utils/affirmations';
-import {
-  getDailyUsage,
-  getUserData,
-  incrementBrowseCount,
-  toggleFavorite,
-} from '../../src/services/storage';
-import { useToast } from '../../src/components/Toast';
-import { usePremium } from '../../src/context/PremiumContext';
+import { hexWithAlpha } from '../../src/utils/affirmations';
+import { getUserData, toggleFavorite } from '../../src/services/storage';
 import { useShare } from '../../src/context/ShareContext';
-import { trackEvent } from '../../src/services/analytics';
 
-const FREE_DAILY_VIEWS = 5;
-
-export default function CategoryDetailScreen() {
+export default function PackDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const toast = useToast();
-  const category = id ? getCategoryById(id) : undefined;
-  const items = id ? getAffirmationsByCategory(id) : [];
-  const { isPremium } = usePremium();
+  const pack = id ? getPackById(id) : undefined;
   const { shareAffirmation } = useShare();
 
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [browseViews, setBrowseViews] = useState(0);
-  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     const data = await getUserData();
-    const usage = await getDailyUsage();
     setFavorites(data.favorites);
-    setBrowseViews(usage.browseViewCount);
   }, []);
 
   useEffect(() => {
     refresh();
-    if (id) trackEvent('category_viewed', { categoryId: id });
-  }, [refresh, id]);
+  }, [refresh]);
 
   useFocusEffect(
     useCallback(() => {
@@ -64,37 +43,31 @@ export default function CategoryDetailScreen() {
     }, [refresh])
   );
 
-  const onOpenAffirmation = async (affId: string) => {
-    if (isPremium || openedIds.has(affId)) return;
-    if (browseViews >= FREE_DAILY_VIEWS) {
-      toast.show(
-        'You have reached today’s browse limit. Unlock unlimited browsing with Premium.'
-      );
-      router.push('/paywall');
-      return;
-    }
-    const next = await incrementBrowseCount();
-    setBrowseViews(next);
-    setOpenedIds((prev) => new Set(prev).add(affId));
-  };
-
   const onToggle = async (affId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const updated = await toggleFavorite(affId);
     setFavorites(updated);
   };
 
-  const renderItem: ListRenderItem<Affirmation> = ({ item }) => {
-    const isFav = favorites.includes(item.id);
-    const limited =
-      !isPremium &&
-      browseViews >= FREE_DAILY_VIEWS &&
-      !openedIds.has(item.id);
+  if (!pack) {
     return (
-      <Pressable onPress={() => onOpenAffirmation(item.id)} style={styles.row}>
-        <Text style={[styles.rowText, limited && styles.rowTextLimited]}>
-          {item.text}
-        </Text>
+      <SafeAreaView style={styles.container}>
+        <Text style={styles.missing}>Pack not found.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  const renderItem: ListRenderItem<PackAffirmation> = ({ item }) => {
+    const isFav = favorites.includes(item.id);
+    const asAffirmation: Affirmation = {
+      id: item.id,
+      text: item.text,
+      categoryId: pack.id,
+      isPremium: false,
+    };
+    return (
+      <View style={styles.row}>
+        <Text style={styles.rowText}>{item.text}</Text>
         <View style={styles.rowActions}>
           <Pressable hitSlop={12} onPress={() => onToggle(item.id)}>
             <Ionicons
@@ -105,7 +78,7 @@ export default function CategoryDetailScreen() {
           </Pressable>
           <Pressable
             hitSlop={12}
-            onPress={() => shareAffirmation(item)}
+            onPress={() => shareAffirmation(asAffirmation)}
             style={styles.iconSpacer}
           >
             <Ionicons
@@ -115,23 +88,15 @@ export default function CategoryDetailScreen() {
             />
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     );
   };
-
-  if (!category) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.missing}>Category not found.</Text>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <View style={styles.root}>
       <StatusBar style="light" />
       <LinearGradient
-        colors={[category.color, hexWithAlpha(category.color, 0.7), COLORS.cream]}
+        colors={[pack.color, hexWithAlpha(pack.color, 0.7), COLORS.cream]}
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
@@ -147,12 +112,12 @@ export default function CategoryDetailScreen() {
           </Pressable>
         </View>
         <View style={styles.titleBlock}>
-          <Text style={styles.titleEmoji}>{category.icon}</Text>
-          <Text style={styles.titleText}>{category.name}</Text>
-          <Text style={styles.titleCount}>{items.length} affirmations</Text>
+          <Text style={styles.titleEmoji}>{pack.emoji}</Text>
+          <Text style={styles.titleText}>{pack.name}</Text>
+          <Text style={styles.titleSubtitle}>{pack.description}</Text>
         </View>
         <FlatList
-          data={items}
+          data={pack.affirmations}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -197,7 +162,7 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     marginTop: SPACING.xs,
   },
-  titleCount: {
+  titleSubtitle: {
     fontFamily: FONTS.bodyMedium,
     fontSize: FONT_SIZES.caption,
     color: 'rgba(255, 255, 255, 0.85)',
@@ -221,9 +186,6 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     lineHeight: 22,
     marginRight: SPACING.md,
-  },
-  rowTextLimited: {
-    color: COLORS.textSecondary,
   },
   rowActions: { flexDirection: 'row', alignItems: 'center' },
   iconSpacer: { marginLeft: SPACING.md },
