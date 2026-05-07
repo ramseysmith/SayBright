@@ -35,7 +35,8 @@
       "bundleIdentifier": "com.saybright.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSUserTrackingUsageDescription": "This allows SayBright to show you more relevant content and support the free version of the app."
+        "NSUserTrackingUsageDescription": "This allows SayBright to show you more relevant content and support the free version of the app.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -45,10 +46,19 @@
       },
       "package": "com.saybright.app",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "com.google.android.gms.permission.AD_ID"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f9330c2a-1001-462b-a165-aca2816dd8e5"
+      }
     }
   }
 }
