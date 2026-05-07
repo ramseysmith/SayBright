@@ -18,7 +18,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { useURL } from 'expo-linking';
 import { COLORS } from '../src/constants/theme';
-import { updateUserData } from '../src/services/storage';
+import { getUserData, updateUserData } from '../src/services/storage';
 import { ToastProvider } from '../src/components/Toast';
 import { PremiumProvider } from '../src/context/PremiumContext';
 import { ShareProvider } from '../src/context/ShareContext';
@@ -70,14 +70,26 @@ export default function RootLayout() {
   }, [fontsLoaded, bootChecked]);
 
   useEffect(() => {
-    if (!bootChecked || hasSeenOnboarding === null) return;
-    const inOnboarding = segments[0] === 'onboarding';
-    if (!hasSeenOnboarding && !inOnboarding) {
-      router.replace('/onboarding');
-    } else if (hasSeenOnboarding && inOnboarding) {
-      router.replace('/(tabs)');
-    }
-  }, [bootChecked, hasSeenOnboarding, segments, router]);
+    if (!bootChecked) return;
+    let cancelled = false;
+    (async () => {
+      const data = await getUserData();
+      if (cancelled) return;
+      const seen = data.preferences.hasSeenOnboarding;
+      setSeen((prev) => (prev === seen ? prev : seen));
+      const root = segments[0];
+      const inOnboarding = root === 'onboarding';
+      const inTabs = root === '(tabs)';
+      if (!seen && inTabs) {
+        router.replace('/onboarding');
+      } else if (seen && inOnboarding) {
+        router.replace('/(tabs)');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [bootChecked, segments, router]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(() => {

@@ -19,10 +19,10 @@ import { PlanCard } from './PlanCard';
 const FEATURES = [
   'Unlimited daily affirmations',
   'All 10 categories with 250+ affirmations',
-  'Custom reminder notifications',
   'Home screen and lock screen widgets',
   'Watermark free share cards',
   'Ad free experience',
+  'Record your own affirmations',
 ];
 
 export function PaywallVariantA() {
@@ -92,7 +92,6 @@ export function PaywallVariantA() {
                 <PlanCard
                   label="Annual"
                   price={`${c.annualPrice}/yr`}
-                  saving="Save 44%"
                   bestValue
                   selected={c.selected === 'annual'}
                   onPress={() => c.setSelected('annual')}

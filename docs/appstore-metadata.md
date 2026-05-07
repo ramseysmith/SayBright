@@ -31,11 +31,11 @@ CUSTOM REMINDERS
 Set a daily reminder so you never miss your affirmation practice. Choose your perfect time and let SayBright come to you.
 
 SAYBRIGHT PREMIUM
-Unlock all 10 categories, unlimited daily affirmations, home screen widgets, custom reminders, watermark free share cards, and an ad free experience.
+Unlock all 10 categories, unlimited daily affirmations, home screen widgets, watermark free share cards, the ability to record your own affirmations in your own voice, and an ad free experience.
 
 Subscription options:
-Monthly: $2.99 per month
-Annual: $19.99 per year (save 44%)
+Monthly: $0.99 per month
+Annual: $9.99 per year (best value)
 
 Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. You can manage and cancel your subscriptions by going to your account settings on the App Store after purchase.
 

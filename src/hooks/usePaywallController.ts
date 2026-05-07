@@ -114,8 +114,8 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
     setRestoring(false);
   };
 
-  const monthlyPrice = packages.monthly?.product.priceString ?? '$2.99';
-  const annualPrice = packages.annual?.product.priceString ?? '$19.99';
+  const monthlyPrice = packages.monthly?.product.priceString ?? '$0.99';
+  const annualPrice = packages.annual?.product.priceString ?? '$9.99';
 
   return {
     loading,

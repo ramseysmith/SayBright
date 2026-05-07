@@ -19,10 +19,10 @@ import { ErrorCard, LegalSection } from './PaywallVariantA';
 const FEATURES = [
   'Unlimited daily affirmations',
   'All 10 categories with 250+ affirmations',
-  'Custom reminder notifications',
   'Home screen and lock screen widgets',
   'Watermark free share cards',
   'Ad free experience',
+  'Record your own affirmations',
 ];
 
 function secondsUntilMidnight(): number {
@@ -117,7 +117,7 @@ export function PaywallVariantC() {
                 <PlanCard
                   label="Annual"
                   price={`${c.annualPrice}/yr`}
-                  strikethroughPrice="$29.99"
+                  strikethroughPrice="$14.99"
                   saving="Best price"
                   bestValue
                   badgeText="Launch Special"

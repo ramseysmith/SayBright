@@ -112,7 +112,6 @@ export function PaywallVariantB() {
                 <PlanCard
                   label="Annual"
                   price={`${c.annualPrice}/yr`}
-                  saving="Save 44%"
                   bestValue
                   selected={c.selected === 'annual'}
                   onPress={() => c.setSelected('annual')}

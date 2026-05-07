@@ -17,9 +17,9 @@ export const CROSS_PROMO = [
   },
   {
     id: 'celebriday',
-    icon: '🎂',
+    icon: '🎉',
     title: 'CelebriDay',
-    subtitle: 'Who shares your birthday?',
+    subtitle: "Discover today's random holidays",
     url: 'https://apps.apple.com/us/app/celebriday/id6760971240',
   },
   {

@@ -17,6 +17,8 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withDelay,
+  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -95,6 +97,27 @@ export default function TodayScreen() {
   const streakBadgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: streakBadgeScale.value }],
   }));
+  const flameScale = useSharedValue(1);
+  const flameStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: flameScale.value }],
+  }));
+
+  useEffect(() => {
+    flameScale.value = withRepeat(
+      withSequence(
+        withTiming(1.15, {
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+        }),
+        withTiming(1, {
+          duration: 1000,
+          easing: Easing.inOut(Easing.ease),
+        })
+      ),
+      -1,
+      false
+    );
+  }, [flameScale]);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { scale: scale.value }],
@@ -429,19 +452,19 @@ export default function TodayScreen() {
       <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
         <View style={styles.header}>
           {!isPremium ? (
-            <Pressable
-              onPress={() => router.push('/paywall')}
-              style={styles.goPremiumPill}
-            >
-              <Text style={styles.goPremiumText}>✨ Go Premium</Text>
-            </Pressable>
+            <GoPremiumPill onPress={() => router.push('/paywall')} />
           ) : (
             <View />
           )}
           <Pressable onPress={() => setCalendarOpen(true)} hitSlop={6}>
             <Animated.View style={[styles.streakBadge, streakBadgeStyle]}>
+              <Animated.Text
+                style={[styles.streakText, styles.flameEmoji, { color: textColor }, flameStyle]}
+              >
+                🔥
+              </Animated.Text>
               <Text style={[styles.streakText, { color: textColor }]}>
-                🔥 {streakCount}
+                {streakCount}
               </Text>
             </Animated.View>
           </Pressable>
@@ -558,6 +581,54 @@ export default function TodayScreen() {
   );
 }
 
+function GoPremiumPill({ onPress }: { onPress: () => void }) {
+  const shimmerX = useSharedValue(-80);
+
+  useEffect(() => {
+    shimmerX.value = withRepeat(
+      withSequence(
+        withDelay(
+          3000,
+          withTiming(120, {
+            duration: 800,
+            easing: Easing.inOut(Easing.ease),
+          })
+        ),
+        withTiming(-80, { duration: 0 })
+      ),
+      -1,
+      false
+    );
+  }, [shimmerX]);
+
+  const shimmerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: shimmerX.value }, { rotate: '20deg' }],
+  }));
+
+  return (
+    <Pressable onPress={onPress} hitSlop={6}>
+      <View style={styles.goPremiumPill}>
+        <Text style={styles.goPremiumText}>✨ Go Premium</Text>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.shimmerWrap, shimmerStyle]}
+        >
+          <LinearGradient
+            colors={[
+              'rgba(255, 255, 255, 0)',
+              'rgba(255, 255, 255, 0.45)',
+              'rgba(255, 255, 255, 0)',
+            ]}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.shimmerGradient}
+          />
+        </Animated.View>
+      </View>
+    </Pressable>
+  );
+}
+
 function PaywallCard({
   textColor,
   subtleTextColor,
@@ -601,17 +672,37 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
   },
   goPremiumPill: {
-    backgroundColor: COLORS.primaryGold,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    backgroundColor: '#E8961F',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
   },
   goPremiumText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 11,
+    fontSize: 12,
     color: COLORS.white,
   },
+  shimmerWrap: {
+    position: 'absolute',
+    top: -10,
+    bottom: -10,
+    width: 30,
+    left: 0,
+  },
+  shimmerGradient: {
+    flex: 1,
+  },
   streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -620,6 +711,9 @@ const styles = StyleSheet.create({
   streakText: {
     fontFamily: FONTS.bodyBold,
     fontSize: FONT_SIZES.body,
+  },
+  flameEmoji: {
+    marginRight: 4,
   },
   cardWrapper: {
     flex: 1,

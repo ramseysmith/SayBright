@@ -9,20 +9,33 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   ScrollView,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import DateTimePicker, {
+  DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
+import { Ionicons } from '@expo/vector-icons';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../src/constants/theme';
 import { TIME_GRADIENTS } from '../src/utils/time';
 import { CategoryPicker } from '../src/components/CategoryPicker';
 import {
   setHasSeenOnboarding,
   setSelectedCategories,
+  updateUserData,
 } from '../src/services/storage';
 import { trackEvent } from '../src/services/analytics';
+import {
+  requestNotificationPermissions,
+  scheduleDailyReminder,
+  getRandomNotificationAffirmation,
+} from '../src/services/notifications';
+import { getAffirmationsByCategories } from '../src/utils/affirmations';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -68,8 +81,16 @@ const SLIDES: Slide[] = [
   },
 ];
 
+const REMINDER_GRADIENT: readonly [string, string, string] = [
+  '#B8A9E8',
+  '#E8E0F5',
+  '#FFF8F0',
+];
+
+type PageItem = Slide | { key: 'focus' } | { key: 'reminder' };
+
 export default function OnboardingScreen() {
-  const listRef = useRef<FlatList<Slide | { key: 'focus' }>>(null);
+  const listRef = useRef<FlatList<PageItem>>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [selected, setSelected] = useState<string[]>([
     'confidence',
@@ -77,9 +98,11 @@ export default function OnboardingScreen() {
   ]);
   const router = useRouter();
 
-  const pages: (Slide | { key: 'focus' })[] = [...SLIDES, { key: 'focus' }];
+  const pages: PageItem[] = [...SLIDES, { key: 'focus' }, { key: 'reminder' }];
   const totalPages = pages.length;
-  const isFocus = pageIndex === totalPages - 1;
+  const currentPage = pages[pageIndex];
+  const isFocus = currentPage?.key === 'focus';
+  const isReminder = currentPage?.key === 'reminder';
   const canProceedFocus = selected.length >= 2 && selected.length <= 4;
 
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -87,25 +110,42 @@ export default function OnboardingScreen() {
     if (next !== pageIndex) setPageIndex(next);
   };
 
-  const handleNext = async () => {
-    Haptics.selectionAsync();
-    if (!isFocus) {
-      const target = pageIndex + 1;
-      listRef.current?.scrollToIndex({ index: target, animated: true });
-      return;
-    }
-    if (!canProceedFocus) return;
+  const finishOnboarding = async (
+    reminderEnabled: boolean,
+    reminderTime: string
+  ) => {
     await setSelectedCategories(selected);
+    await updateUserData((current) => ({
+      ...current,
+      preferences: {
+        ...current.preferences,
+        reminderEnabled,
+        reminderTime,
+      },
+    }));
     await setHasSeenOnboarding(true);
     trackEvent('onboarding_complete', {
       categoriesSelected: selected.length,
+      remindersEnabled: reminderEnabled,
     });
     router.replace('/(tabs)');
   };
 
-  const currentStatusBar =
-    isFocus ? 'dark' : SLIDES[pageIndex]?.statusBar ?? 'dark';
-  const ctaLabel = isFocus ? 'Get Started' : 'Next';
+  const handleNext = async () => {
+    Haptics.selectionAsync();
+    if (isReminder) return; // reminder slide handles its own actions
+    if (isFocus && !canProceedFocus) return;
+    const target = pageIndex + 1;
+    listRef.current?.scrollToIndex({ index: target, animated: true });
+  };
+
+  const currentStatusBar: 'light' | 'dark' = isFocus
+    ? 'dark'
+    : isReminder
+      ? 'dark'
+      : SLIDES[pageIndex]?.statusBar ?? 'dark';
+
+  const ctaLabel = 'Next';
   const ctaDisabled = isFocus && !canProceedFocus;
 
   return (
@@ -118,6 +158,7 @@ export default function OnboardingScreen() {
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
+        scrollEnabled={!isReminder /* lock during reminder confirmation */ || true}
         onScroll={onScroll}
         scrollEventThrottle={16}
         renderItem={({ item }) => {
@@ -130,6 +171,14 @@ export default function OnboardingScreen() {
               />
             );
           }
+          if (item.key === 'reminder') {
+            return (
+              <ReminderSlide
+                selectedCategories={selected}
+                onComplete={finishOnboarding}
+              />
+            );
+          }
           return <IntroSlide slide={item as Slide} />;
         }}
         getItemLayout={(_, index) => ({
@@ -138,35 +187,60 @@ export default function OnboardingScreen() {
           index,
         })}
       />
-      <SafeAreaView edges={['bottom']} style={styles.footer} pointerEvents="box-none">
-        <View style={styles.dots}>
-          {pages.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                {
-                  backgroundColor:
-                    i === pageIndex
-                      ? COLORS.textPrimary
-                      : 'rgba(26, 26, 46, 0.25)',
-                },
-              ]}
-            />
-          ))}
-        </View>
-        <Pressable
-          onPress={handleNext}
-          disabled={ctaDisabled}
-          style={[
-            styles.cta,
-            { backgroundColor: COLORS.textPrimary },
-            ctaDisabled && { opacity: 0.4 },
-          ]}
+      {!isReminder ? (
+        <SafeAreaView edges={['bottom']} style={styles.footer} pointerEvents="box-none">
+          <View style={styles.dots}>
+            {pages.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      i === pageIndex
+                        ? COLORS.textPrimary
+                        : 'rgba(26, 26, 46, 0.25)',
+                  },
+                ]}
+              />
+            ))}
+          </View>
+          <Pressable
+            onPress={handleNext}
+            disabled={ctaDisabled}
+            style={[
+              styles.cta,
+              { backgroundColor: COLORS.textPrimary },
+              ctaDisabled && { opacity: 0.4 },
+            ]}
+          >
+            <Text style={styles.ctaText}>{ctaLabel}</Text>
+          </Pressable>
+        </SafeAreaView>
+      ) : (
+        <SafeAreaView
+          edges={['bottom']}
+          style={styles.dotsOnlyFooter}
+          pointerEvents="none"
         >
-          <Text style={styles.ctaText}>{ctaLabel}</Text>
-        </Pressable>
-      </SafeAreaView>
+          <View style={styles.dots}>
+            {pages.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  {
+                    backgroundColor:
+                      i === pageIndex
+                        ? COLORS.textPrimary
+                        : 'rgba(26, 26, 46, 0.25)',
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </SafeAreaView>
+      )}
     </View>
   );
 }
@@ -248,6 +322,144 @@ function FocusSlide({
   );
 }
 
+type ReminderPhase = 'idle' | 'requesting' | 'denied' | 'success';
+
+function ReminderSlide({
+  selectedCategories,
+  onComplete,
+}: {
+  selectedCategories: string[];
+  onComplete: (enabled: boolean, time: string) => Promise<void>;
+}) {
+  const [date, setDate] = useState(() => {
+    const d = new Date();
+    d.setHours(8, 0, 0, 0);
+    return d;
+  });
+  const [phase, setPhase] = useState<ReminderPhase>('idle');
+
+  const formatTime = (d: Date): string => {
+    const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
+    const h12 = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
+    return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
+  };
+
+  const formatHHMM = (d: Date): string =>
+    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
+  const onTimeChange = (_: DateTimePickerEvent, picked?: Date) => {
+    if (picked) setDate(picked);
+  };
+
+  const handleEnable = async () => {
+    Haptics.selectionAsync();
+    setPhase('requesting');
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      setPhase('denied');
+      return;
+    }
+    const pool = getAffirmationsByCategories(selectedCategories);
+    const text = getRandomNotificationAffirmation(pool);
+    await scheduleDailyReminder(date.getHours(), date.getMinutes(), text);
+    setPhase('success');
+    setTimeout(() => {
+      onComplete(true, formatHHMM(date));
+    }, 1500);
+  };
+
+  const handleSkip = async () => {
+    Haptics.selectionAsync();
+    await onComplete(false, formatHHMM(date));
+  };
+
+  const handleContinueWithout = async () => {
+    await onComplete(false, formatHHMM(date));
+  };
+
+  return (
+    <View style={styles.slide}>
+      <LinearGradient
+        colors={REMINDER_GRADIENT}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      />
+      <SafeAreaView edges={['top', 'bottom']} style={styles.slideInner}>
+        <ScrollView
+          contentContainerStyle={styles.reminderContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.heroEmoji}>🔔</Text>
+          <Text style={[styles.title, styles.reminderTitle]}>
+            Never Miss Your Affirmation
+          </Text>
+          <Text style={styles.reminderSubtitle}>
+            Pick a time each day and we'll send you a gentle reminder with a
+            fresh affirmation.
+          </Text>
+
+          <View style={styles.pickerCard}>
+            <Text style={styles.pickerCardLabel}>Reminder time</Text>
+            <Text style={styles.pickerCardTime}>{formatTime(date)}</Text>
+            <DateTimePicker
+              value={date}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={onTimeChange}
+              style={Platform.OS === 'ios' ? styles.iosPicker : undefined}
+            />
+          </View>
+
+          {phase === 'success' ? (
+            <View style={styles.successBox}>
+              <Ionicons
+                name="checkmark-circle"
+                size={32}
+                color={COLORS.successGreen}
+              />
+              <Text style={styles.successText}>You're all set!</Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={handleEnable}
+              disabled={phase === 'requesting'}
+              style={[
+                styles.enableBtn,
+                phase === 'requesting' && { opacity: 0.7 },
+              ]}
+            >
+              {phase === 'requesting' ? (
+                <ActivityIndicator color={COLORS.white} />
+              ) : (
+                <Text style={styles.enableBtnText}>Enable Reminders</Text>
+              )}
+            </Pressable>
+          )}
+
+          {phase === 'denied' ? (
+            <>
+              <Text style={styles.deniedNote}>
+                No worries, you can always enable reminders later in Settings.
+              </Text>
+              <Pressable
+                onPress={handleContinueWithout}
+                style={styles.skipBtn}
+              >
+                <Text style={styles.skipBtnText}>Continue Without Reminders</Text>
+              </Pressable>
+            </>
+          ) : phase === 'idle' ? (
+            <Pressable onPress={handleSkip} style={styles.skipBtn}>
+              <Text style={styles.skipBtnText}>Skip for Now</Text>
+            </Pressable>
+          ) : null}
+        </ScrollView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: COLORS.cream },
   slide: { width: SCREEN_WIDTH, flex: 1 },
@@ -291,12 +503,107 @@ const styles = StyleSheet.create({
   pickerWrap: {
     marginTop: SPACING.md,
   },
+  reminderContent: {
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xxl + 24,
+    alignItems: 'center',
+  },
+  reminderTitle: {
+    fontSize: 28,
+    color: COLORS.textPrimary,
+  },
+  reminderSubtitle: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: FONT_SIZES.body,
+    textAlign: 'center',
+    color: 'rgba(26, 26, 46, 0.72)',
+    marginBottom: SPACING.lg,
+    lineHeight: 22,
+  },
+  pickerCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+    marginVertical: SPACING.md,
+    width: '100%',
+    alignItems: 'center',
+  },
+  pickerCardLabel: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: FONT_SIZES.caption,
+    color: COLORS.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginBottom: SPACING.xs,
+  },
+  pickerCardTime: {
+    fontFamily: FONTS.displayBold,
+    fontSize: 36,
+    color: COLORS.textPrimary,
+    marginBottom: SPACING.sm,
+  },
+  iosPicker: {
+    height: 180,
+    width: 240,
+  },
+  enableBtn: {
+    backgroundColor: COLORS.primaryGold,
+    borderRadius: 12,
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    width: '100%',
+    marginTop: SPACING.md,
+  },
+  enableBtnText: {
+    fontFamily: FONTS.bodyBold,
+    color: COLORS.white,
+    fontSize: 18,
+  },
+  successBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.md,
+    gap: SPACING.sm,
+  },
+  successText: {
+    fontFamily: FONTS.bodyBold,
+    color: COLORS.successGreen,
+    fontSize: FONT_SIZES.body,
+  },
+  deniedNote: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 14,
+    color: 'rgba(26, 26, 46, 0.72)',
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    lineHeight: 20,
+  },
+  skipBtn: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  skipBtnText: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 14,
+    color: COLORS.textSecondary,
+  },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
     paddingHorizontal: SPACING.lg,
+    paddingBottom: SPACING.md,
+  },
+  dotsOnlyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingBottom: SPACING.md,
   },
   dots: {

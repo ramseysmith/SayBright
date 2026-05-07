@@ -125,10 +125,6 @@ export default function SettingsScreen() {
   };
 
   const handleReminderToggle = async (next: boolean) => {
-    if (!isPremium) {
-      router.push('/paywall');
-      return;
-    }
     if (next) {
       const granted = await requestNotificationPermissions();
       if (!granted) {
@@ -159,10 +155,6 @@ export default function SettingsScreen() {
   };
 
   const handleTimeRowPress = () => {
-    if (!isPremium) {
-      router.push('/paywall');
-      return;
-    }
     if (!reminderEnabled) {
       toast.show('Turn on Reminders to set the time.');
       return;
@@ -273,12 +265,7 @@ export default function SettingsScreen() {
 
         <SectionHeader title="Preferences" />
         <View style={styles.section}>
-          <Pressable
-            onPress={() => {
-              if (!isPremium) router.push('/paywall');
-            }}
-            style={styles.row}
-          >
+          <View style={styles.row}>
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>Reminders</Text>
               <Text style={styles.rowSubtitle}>
@@ -286,37 +273,27 @@ export default function SettingsScreen() {
               </Text>
             </View>
             <View style={styles.rowAccessory}>
-              {!isPremium ? (
-                <View style={styles.premiumPill}>
-                  <Text style={styles.premiumPillText}>Premium</Text>
-                </View>
-              ) : null}
               <Switch
-                value={isPremium ? reminderEnabled : false}
-                disabled={!isPremium}
+                value={reminderEnabled}
                 onValueChange={handleReminderToggle}
                 trackColor={{ true: COLORS.primaryGold, false: '#D1D5DB' }}
               />
             </View>
+          </View>
+          <View style={styles.divider} />
+          <Pressable onPress={handleTimeRowPress} style={styles.row}>
+            <View style={styles.rowMain}>
+              <Text style={styles.rowTitle}>Reminder Time</Text>
+              <Text style={styles.rowSubtitle}>
+                {formatTimeDisplay(reminderTime)}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={COLORS.textSecondary}
+            />
           </Pressable>
-          {isPremium ? (
-            <>
-              <View style={styles.divider} />
-              <Pressable onPress={handleTimeRowPress} style={styles.row}>
-                <View style={styles.rowMain}>
-                  <Text style={styles.rowTitle}>Reminder Time</Text>
-                  <Text style={styles.rowSubtitle}>
-                    {formatTimeDisplay(reminderTime)}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={COLORS.textSecondary}
-                />
-              </Pressable>
-            </>
-          ) : null}
           <View style={styles.divider} />
           <Pressable onPress={openPicker} style={styles.row}>
             <View style={styles.rowMain}>
