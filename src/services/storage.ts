@@ -20,6 +20,7 @@ export interface UserData {
     date: string;
     todaySwipeCount: number;
     browseViewCount: number;
+    dailyAffirmationIds: string[];
   };
   cachedPremiumStatus: boolean;
   lastPremiumCheck: string | null;
@@ -47,6 +48,7 @@ const DEFAULT_USER_DATA: UserData = {
     date: '',
     todaySwipeCount: 0,
     browseViewCount: 0,
+    dailyAffirmationIds: [],
   },
   cachedPremiumStatus: false,
   lastPremiumCheck: null,
@@ -99,6 +101,15 @@ export async function updateUserData(
   return updated;
 }
 
+function freshDailyUsage(today: string): UserData['dailyUsage'] {
+  return {
+    date: today,
+    todaySwipeCount: 0,
+    browseViewCount: 0,
+    dailyAffirmationIds: [],
+  };
+}
+
 export async function getDailyUsage(): Promise<{
   todaySwipeCount: number;
   browseViewCount: number;
@@ -108,7 +119,7 @@ export async function getDailyUsage(): Promise<{
   if (data.dailyUsage.date !== today) {
     const updated: UserData = {
       ...data,
-      dailyUsage: { date: today, todaySwipeCount: 0, browseViewCount: 0 },
+      dailyUsage: freshDailyUsage(today),
     };
     await setUserData(updated);
     return { todaySwipeCount: 0, browseViewCount: 0 };
@@ -125,7 +136,7 @@ export async function incrementSwipeCount(): Promise<number> {
   const usage =
     data.dailyUsage.date === today
       ? { ...data.dailyUsage }
-      : { date: today, todaySwipeCount: 0, browseViewCount: 0 };
+      : freshDailyUsage(today);
   usage.todaySwipeCount += 1;
   await setUserData({ ...data, dailyUsage: usage });
   return usage.todaySwipeCount;
@@ -137,7 +148,7 @@ export async function incrementBrowseCount(): Promise<number> {
   const usage =
     data.dailyUsage.date === today
       ? { ...data.dailyUsage }
-      : { date: today, todaySwipeCount: 0, browseViewCount: 0 };
+      : freshDailyUsage(today);
   usage.browseViewCount += 1;
   await setUserData({ ...data, dailyUsage: usage });
   return usage.browseViewCount;
@@ -180,4 +191,29 @@ export async function setCachedPremiumStatus(value: boolean): Promise<void> {
 export async function getCachedPremiumStatus(): Promise<boolean> {
   const data = await getUserData();
   return data.cachedPremiumStatus;
+}
+
+export async function getOrCreateDailyAffirmationIds(
+  pickFresh: () => string[]
+): Promise<string[]> {
+  const data = await getUserData();
+  const today = getTodayKey();
+  if (
+    data.dailyUsage.date === today &&
+    data.dailyUsage.dailyAffirmationIds.length > 0
+  ) {
+    return data.dailyUsage.dailyAffirmationIds;
+  }
+  const ids = pickFresh();
+  const usage =
+    data.dailyUsage.date === today
+      ? { ...data.dailyUsage, dailyAffirmationIds: ids }
+      : {
+          date: today,
+          todaySwipeCount: 0,
+          browseViewCount: 0,
+          dailyAffirmationIds: ids,
+        };
+  await setUserData({ ...data, dailyUsage: usage });
+  return ids;
 }

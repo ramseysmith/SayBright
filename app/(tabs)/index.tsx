@@ -28,6 +28,7 @@ import { useRouter } from 'expo-router';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
 // note: getDisplayInfo replaces getCategoryById for pack-aware lookups
 import {
+  getOrCreateDailyAffirmationIds,
   getUserData,
   incrementSwipeCount,
   toggleFavorite,
@@ -61,16 +62,14 @@ import { Audio } from 'expo-av';
 import { Alert } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const FREE_DAILY_SWIPES = 5;
+const FREE_DAILY_LIMIT = 5;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [swipeCount, setSwipeCount] = useState(0);
   const [sessionSwipes, setSessionSwipes] = useState(0);
-  const [paywall, setPaywall] = useState(false);
   const [loading, setLoading] = useState(true);
   const [streakCount, setStreakCount] = useState(0);
   const [milestone, setMilestone] = useState<number | null>(null);
@@ -146,15 +145,34 @@ export default function TodayScreen() {
       );
 
       const combined = [...baseCandidates, ...packAffirmations];
-      const shuffled = shuffle(combined.length > 0 ? combined : AFFIRMATIONS);
-      const today = new Date();
-      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-      const swipes =
-        data.dailyUsage.date === todayKey ? data.dailyUsage.todaySwipeCount : 0;
+      const fullShuffled = shuffle(
+        combined.length > 0 ? combined : AFFIRMATIONS
+      );
+
+      let resolvedPool: Affirmation[];
+      if (isPremium) {
+        resolvedPool = fullShuffled;
+      } else {
+        const lookup = new Map<string, Affirmation>();
+        for (const a of [...AFFIRMATIONS, ...packAffirmations]) {
+          lookup.set(a.id, a);
+        }
+        const dailyIds = await getOrCreateDailyAffirmationIds(() =>
+          fullShuffled.slice(0, FREE_DAILY_LIMIT).map((a) => a.id)
+        );
+        const resolved = dailyIds
+          .map((id) => lookup.get(id))
+          .filter((a): a is Affirmation => Boolean(a));
+        resolvedPool =
+          resolved.length > 0
+            ? resolved
+            : fullShuffled.slice(0, FREE_DAILY_LIMIT);
+      }
+
       if (!active) return;
-      setPool(shuffled);
+      setPool(resolvedPool);
+      setCurrentIndex(0);
       setFavorites(data.favorites);
-      setSwipeCount(swipes);
       setLoading(false);
       opacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
       scale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
@@ -186,7 +204,7 @@ export default function TodayScreen() {
     return () => {
       active = false;
     };
-  }, [opacity, scale, streakBadgeScale]);
+  }, [opacity, scale, streakBadgeScale, isPremium]);
 
   useEffect(() => {
     if (!isPremium) {
@@ -201,16 +219,24 @@ export default function TodayScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
   };
 
-  const onAdvance = (direction: 'forward' | 'backward') => {
+  const canSwipe = (direction: 'forward' | 'backward'): boolean => {
+    if (pool.length === 0) return false;
+    if (isPremium) return true;
     if (direction === 'forward') {
-      if (paywall) return;
-      if (!isPremium && swipeCount >= FREE_DAILY_SWIPES) {
-        setPaywall(true);
-        return;
-      }
-      setCurrentIndex((i) => (pool.length === 0 ? 0 : (i + 1) % pool.length));
-      incrementSwipeCount().then((next) => setSwipeCount(next));
-      if (!isPremium) {
+      // Free users can advance up to and including the paywall card.
+      return currentIndex < pool.length;
+    }
+    return currentIndex > 0;
+  };
+
+  const onAdvance = (direction: 'forward' | 'backward') => {
+    if (pool.length === 0) return;
+    if (direction === 'forward') {
+      if (isPremium) {
+        setCurrentIndex((i) => (i + 1) % pool.length);
+      } else {
+        setCurrentIndex((i) => i + 1);
+        incrementSwipeCount().catch(() => {});
         setSessionSwipes((s) => {
           const next = s + 1;
           if (next > 0 && next % 3 === 0) {
@@ -220,13 +246,11 @@ export default function TodayScreen() {
         });
       }
     } else {
-      if (paywall) {
-        setPaywall(false);
-        return;
+      if (isPremium) {
+        setCurrentIndex((i) => (i - 1 + pool.length) % pool.length);
+      } else {
+        setCurrentIndex((i) => Math.max(0, i - 1));
       }
-      setCurrentIndex((i) =>
-        pool.length === 0 ? 0 : (i - 1 + pool.length) % pool.length
-      );
     }
   };
 
@@ -252,6 +276,11 @@ export default function TodayScreen() {
 
   const startTransition = (direction: 'forward' | 'backward') => {
     if (animating.current) return;
+    if (!canSwipe(direction)) {
+      // Bounds hit: spring back without changing index.
+      translateX.value = withSpring(0, { damping: 18 });
+      return;
+    }
     animating.current = true;
     lightHaptic();
     runTransition(direction);
@@ -420,8 +449,10 @@ export default function TodayScreen() {
     );
   }, [current, streakCount, isPremium]);
 
+  const isPaywallCard = !isPremium && pool.length > 0 && currentIndex >= pool.length;
+
   const onToggleFavorite = async () => {
-    if (!current || paywall) return;
+    if (!current || isPaywallCard) return;
     mediumHaptic();
     heartScale.value = withSequence(
       withSpring(1.3, { damping: 8, stiffness: 200 }),
@@ -436,8 +467,8 @@ export default function TodayScreen() {
   };
 
   const indicatorText =
-    pool.length > 0 && !paywall
-      ? `${currentIndex + 1} of ${pool.length}`
+    pool.length > 0 && !isPaywallCard
+      ? `${Math.min(currentIndex + 1, pool.length)} of ${pool.length}`
       : '';
 
   return (
@@ -476,7 +507,7 @@ export default function TodayScreen() {
           ) : (
             <GestureDetector gesture={pan}>
               <Animated.View style={[styles.card, cardStyle]}>
-                {paywall ? (
+                {isPaywallCard ? (
                   <PaywallCard
                     textColor={textColor}
                     subtleTextColor={subtleTextColor}
