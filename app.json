@@ -9,9 +9,9 @@
     "scheme": "saybright",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FFF8F0"
+      "backgroundColor": "#F5A623"
     },
     "plugins": [
       "expo-router",
