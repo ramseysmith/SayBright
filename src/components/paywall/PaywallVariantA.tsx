@@ -18,7 +18,7 @@ import { PlanCard } from './PlanCard';
 
 const FEATURES = [
   'Unlimited daily affirmations',
-  'All 10 categories with 250+ affirmations',
+  'Browse all categories and 340+ affirmations',
   'Home screen and lock screen widgets',
   'Watermark free share cards',
   'Ad free experience',

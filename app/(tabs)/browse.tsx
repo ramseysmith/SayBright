@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,42 +9,17 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { CATEGORIES, AFFIRMATIONS, Category } from '../../src/data/affirmations';
-import { PACKS } from '../../src/data/packs';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { hexWithAlpha } from '../../src/utils/affirmations';
 import { usePremium } from '../../src/context/PremiumContext';
-import { getDailyUsage } from '../../src/services/storage';
-import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
-import { getPurchasedPacks } from '../../src/services/purchases';
-
-const FREE_BROWSE_VIEWS = 5;
 
 export default function BrowseScreen() {
   const [query, setQuery] = useState('');
-  const [browseViews, setBrowseViews] = useState(0);
-  const [ownedPacks, setOwnedPacks] = useState<string[]>([]);
   const router = useRouter();
   const { isPremium } = usePremium();
-
-  const loadUsage = useCallback(async () => {
-    const usage = await getDailyUsage();
-    setBrowseViews(usage.browseViewCount);
-    const owned = await getPurchasedPacks();
-    setOwnedPacks(owned);
-  }, []);
-
-  useEffect(() => {
-    loadUsage();
-  }, [loadUsage]);
-
-  useFocusEffect(
-    useCallback(() => {
-      loadUsage();
-    }, [loadUsage])
-  );
 
   const filteredCategories = useMemo(() => {
     if (!query.trim()) return CATEGORIES;
@@ -67,17 +42,31 @@ export default function BrowseScreen() {
 
   const handlePress = (cat: Category) => {
     Haptics.selectionAsync();
-    if (cat.isPremium && !isPremium) {
-      router.push('/paywall');
-      return;
-    }
     router.push({ pathname: '/category/[id]', params: { id: cat.id } });
   };
 
   const countFor = (id: string) =>
     AFFIRMATIONS.filter((a) => a.categoryId === id).length;
 
-  const remaining = Math.max(0, FREE_BROWSE_VIEWS - browseViews);
+  if (!isPremium) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.gateWrap}>
+          <Text style={styles.gateEmoji}>🔍</Text>
+          <Text style={styles.gateTitle}>Explore All Categories</Text>
+          <Text style={styles.gateSubtitle}>
+            Browse 340+ affirmations across 10 categories with SayBright Premium.
+          </Text>
+          <Pressable
+            onPress={() => router.push('/paywall')}
+            style={styles.gateCta}
+          >
+            <Text style={styles.gateCtaText}>Unlock with Premium</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -98,83 +87,30 @@ export default function BrowseScreen() {
           returnKeyType="search"
         />
       </View>
-      {!isPremium ? (
-        <Text style={styles.viewCounter}>
-          {remaining} of {FREE_BROWSE_VIEWS} free views today
-        </Text>
-      ) : null}
       <ScrollView
         contentContainerStyle={styles.gridContent}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.grid}>
-          {filteredCategories.map((cat) => {
-            const locked = cat.isPremium && !isPremium;
-            return (
-              <Pressable
-                key={cat.id}
-                onPress={() => handlePress(cat)}
-                style={[
-                  styles.card,
-                  { backgroundColor: hexWithAlpha(cat.color, 0.15) },
-                ]}
-              >
-                <Text style={styles.emoji}>{cat.icon}</Text>
-                <Text style={styles.name}>{cat.name}</Text>
-                <Text style={styles.count}>{countFor(cat.id)} affirmations</Text>
-                {locked ? (
-                  <View style={styles.lockOverlay}>
-                    <Ionicons name="lock-closed" size={22} color={COLORS.white} />
-                  </View>
-                ) : null}
-              </Pressable>
-            );
-          })}
+          {filteredCategories.map((cat) => (
+            <Pressable
+              key={cat.id}
+              onPress={() => handlePress(cat)}
+              style={[
+                styles.card,
+                { backgroundColor: hexWithAlpha(cat.color, 0.15) },
+              ]}
+            >
+              <Text style={styles.emoji}>{cat.icon}</Text>
+              <Text style={styles.name}>{cat.name}</Text>
+              <Text style={styles.count}>{countFor(cat.id)} affirmations</Text>
+            </Pressable>
+          ))}
           {filteredCategories.length === 0 ? (
             <Text style={styles.emptyResult}>No matches found.</Text>
           ) : null}
         </View>
-
-        <View style={styles.packsSection}>
-          <View style={styles.packsHeaderRow}>
-            <Text style={styles.packsTitle}>Affirmation Packs</Text>
-            <Pressable hitSlop={8} onPress={() => router.push('/packs')}>
-              <Text style={styles.packsSeeAll}>See all</Text>
-            </Pressable>
-          </View>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.packsRow}
-          >
-            {PACKS.map((pack) => {
-              const owned = ownedPacks.includes(pack.productId);
-              return (
-                <Pressable
-                  key={pack.id}
-                  onPress={() => router.push('/packs')}
-                  style={[
-                    styles.packCard,
-                    { backgroundColor: hexWithAlpha(pack.color, 0.15) },
-                  ]}
-                >
-                  <Text style={styles.packEmoji}>{pack.emoji}</Text>
-                  <Text style={styles.packName}>{pack.name}</Text>
-                  <Text
-                    style={[
-                      styles.packPrice,
-                      owned && { color: COLORS.successGreen },
-                    ]}
-                  >
-                    {owned ? '✓ Owned' : pack.price}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
       </ScrollView>
-      <BannerAdWrapper />
     </SafeAreaView>
   );
 }
@@ -205,13 +141,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodyRegular,
     fontSize: FONT_SIZES.body,
     color: COLORS.textPrimary,
-  },
-  viewCounter: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.sm,
-    paddingHorizontal: SPACING.lg,
   },
   gridContent: {
     padding: SPACING.lg,
@@ -245,12 +174,6 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
   },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyResult: {
     width: '100%',
     textAlign: 'center',
@@ -258,50 +181,43 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: SPACING.xl,
   },
-  packsSection: {
-    marginTop: SPACING.lg,
+  gateWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: SPACING.lg,
   },
-  packsHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING.md,
+  gateEmoji: {
+    fontSize: 64,
+    marginBottom: SPACING.lg,
   },
-  packsTitle: {
+  gateTitle: {
     fontFamily: FONTS.displayBold,
-    fontSize: FONT_SIZES.subtitle,
-    color: COLORS.textPrimary,
-  },
-  packsSeeAll: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-    color: COLORS.primaryGold,
-  },
-  packsRow: {
-    paddingRight: SPACING.lg,
-    gap: SPACING.md,
-  },
-  packCard: {
-    width: 140,
-    padding: SPACING.md,
-    borderRadius: 14,
-    alignItems: 'center',
-  },
-  packEmoji: {
-    fontSize: 32,
-    marginBottom: SPACING.xs,
-  },
-  packName: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 13,
+    fontSize: 28,
     color: COLORS.textPrimary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: SPACING.md,
   },
-  packPrice: {
+  gateSubtitle: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    maxWidth: 280,
+    lineHeight: 22,
+  },
+  gateCta: {
+    backgroundColor: COLORS.primaryGold,
+    marginHorizontal: SPACING.xl + 8,
+    marginTop: SPACING.lg,
+    alignSelf: 'stretch',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  gateCtaText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 12,
-    color: COLORS.primaryGold,
+    fontSize: FONT_SIZES.body,
+    color: COLORS.white,
   },
 });

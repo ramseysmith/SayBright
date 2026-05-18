@@ -37,8 +37,6 @@ import {
 } from '../../src/services/notifications';
 import { getAffirmationsByCategories } from '../../src/utils/affirmations';
 import { CROSS_PROMO, URLS } from '../../src/constants/urls';
-import { getPurchasedPacks } from '../../src/services/purchases';
-import { PACKS } from '../../src/data/packs';
 import {
   deleteRecording,
   getRecordedAffirmationIds,
@@ -72,7 +70,6 @@ export default function SettingsScreen() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState('08:00');
   const [timePickerOpen, setTimePickerOpen] = useState(false);
-  const [ownedPackCount, setOwnedPackCount] = useState(0);
   const [recordedIds, setRecordedIds] = useState<string[]>([]);
   const [recordingsModalOpen, setRecordingsModalOpen] = useState(false);
 
@@ -81,8 +78,6 @@ export default function SettingsScreen() {
     setSelected(data.preferences.selectedCategories);
     setReminderEnabled(data.preferences.reminderEnabled);
     setReminderTime(data.preferences.reminderTime);
-    const packs = await getPurchasedPacks();
-    setOwnedPackCount(packs.length);
     const ids = await getRecordedAffirmationIds();
     setRecordedIds(ids);
   }, []);
@@ -241,10 +236,6 @@ export default function SettingsScreen() {
     );
   };
 
-  const onPacksPress = () => {
-    router.push('/packs');
-  };
-
   const onRecordingsPress = () => {
     if (!isPremium) {
       router.push('/paywall');
@@ -374,23 +365,6 @@ export default function SettingsScreen() {
                 {isPremium
                   ? 'Manage your subscription in the App Store.'
                   : 'Unlock all categories, widgets, and more.'}
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={COLORS.textSecondary}
-            />
-          </Pressable>
-          <View style={styles.divider} />
-          <Pressable onPress={onPacksPress} style={styles.row}>
-            <Text style={styles.rowEmoji}>📦</Text>
-            <View style={styles.rowMain}>
-              <Text style={styles.rowTitle}>Affirmation Packs</Text>
-              <Text style={styles.rowSubtitle}>
-                {ownedPackCount > 0
-                  ? `${ownedPackCount} of ${PACKS.length} owned`
-                  : 'Browse themed packs'}
               </Text>
             </View>
             <Ionicons

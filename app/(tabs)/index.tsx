@@ -26,7 +26,6 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
-// note: getDisplayInfo replaces getCategoryById for pack-aware lookups
 import {
   getOrCreateDailyAffirmationIds,
   getUserData,
@@ -49,8 +48,7 @@ import { useShare } from '../../src/context/ShareContext';
 import { updateWidgetData } from '../../src/services/widgetData';
 import { trackEvent } from '../../src/services/analytics';
 import { getDisplayInfo } from '../../src/utils/affirmations';
-import { getPurchasedPacks } from '../../src/services/purchases';
-import { getPackByProductId } from '../../src/data/packs';
+import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 import {
   deleteRecording,
   getRecordingUri,
@@ -62,7 +60,7 @@ import { Audio } from 'expo-av';
 import { Alert } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 3;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
 
 export default function TodayScreen() {
@@ -129,24 +127,8 @@ export default function TodayScreen() {
       const data = await getUserData();
       const selected = data.preferences.selectedCategories;
       const baseCandidates = getAffirmationsByCategories(selected);
-
-      const purchasedProductIds = await getPurchasedPacks();
-      const packAffirmations: Affirmation[] = purchasedProductIds.flatMap(
-        (productId) => {
-          const pack = getPackByProductId(productId);
-          if (!pack) return [];
-          return pack.affirmations.map((a) => ({
-            id: a.id,
-            text: a.text,
-            categoryId: pack.id,
-            isPremium: false,
-          }));
-        }
-      );
-
-      const combined = [...baseCandidates, ...packAffirmations];
       const fullShuffled = shuffle(
-        combined.length > 0 ? combined : AFFIRMATIONS
+        baseCandidates.length > 0 ? baseCandidates : AFFIRMATIONS
       );
 
       let resolvedPool: Affirmation[];
@@ -154,7 +136,7 @@ export default function TodayScreen() {
         resolvedPool = fullShuffled;
       } else {
         const lookup = new Map<string, Affirmation>();
-        for (const a of [...AFFIRMATIONS, ...packAffirmations]) {
+        for (const a of AFFIRMATIONS) {
           lookup.set(a.id, a);
         }
         const dailyIds = await getOrCreateDailyAffirmationIds(() =>
@@ -223,7 +205,6 @@ export default function TodayScreen() {
     if (pool.length === 0) return false;
     if (isPremium) return true;
     if (direction === 'forward') {
-      // Free users can advance up to and including the paywall card.
       return currentIndex < pool.length;
     }
     return currentIndex > 0;
@@ -277,7 +258,6 @@ export default function TodayScreen() {
   const startTransition = (direction: 'forward' | 'backward') => {
     if (animating.current) return;
     if (!canSwipe(direction)) {
-      // Bounds hit: spring back without changing index.
       translateX.value = withSpring(0, { damping: 18 });
       return;
     }
@@ -585,6 +565,12 @@ export default function TodayScreen() {
             </Text>
           ) : null}
         </View>
+
+        {!isPremium ? (
+          <View style={styles.bannerAnchor}>
+            <BannerAdWrapper />
+          </View>
+        ) : null}
       </SafeAreaView>
 
       <MilestoneCelebration
@@ -672,10 +658,10 @@ function PaywallCard({
   return (
     <View style={styles.paywallInner}>
       <Text style={[styles.paywallTitle, { color: textColor }]}>
-        You have seen today's free affirmations.
+        That's today's free inspiration
       </Text>
       <Text style={[styles.paywallBody, { color: subtleTextColor }]}>
-        Unlock unlimited with SayBright Premium.
+        Unlock unlimited daily affirmations with SayBright Premium.
       </Text>
       <Pressable
         onPress={onSeePlans}
@@ -686,7 +672,7 @@ function PaywallCard({
         </Text>
       </Pressable>
       <Text style={[styles.paywallFooter, { color: subtleTextColor }]}>
-        Come back tomorrow for 5 more.
+        Come back tomorrow for 3 more
       </Text>
     </View>
   );
@@ -826,5 +812,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  bannerAnchor: {
+    width: '100%',
+    alignItems: 'center',
   },
 });

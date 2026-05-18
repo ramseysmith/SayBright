@@ -7,7 +7,7 @@ SayBright
 Daily Affirmations & Positivity
 
 ## Promotional Text (170 chars, can be updated without a new build)
-Start every day brighter with 250 handcrafted affirmations. Build streaks, share beautiful cards, and transform your mindset one day at a time.
+Start every day brighter with 340+ handcrafted affirmations. Build streaks, share beautiful cards, and transform your mindset one day at a time.
 
 ## Description
 
@@ -16,7 +16,7 @@ SayBright helps you build a daily affirmation practice that sticks.
 Every morning, SayBright greets you with a personalized affirmation from the categories you care about most: confidence, gratitude, self love, morning energy, and more. Swipe through beautiful cards, save your favorites, and share them as stunning quote cards on social media.
 
 DAILY AFFIRMATIONS
-Choose from 10 categories and 250 carefully crafted affirmations. Each one is designed to feel authentic, uplifting, and actionable.
+Choose from 10 categories and 340+ carefully crafted affirmations. Each one is designed to feel authentic, uplifting, and actionable.
 
 BUILD YOUR STREAK
 Open SayBright daily to build your streak. Celebrate milestones at 7, 14, 30, 60, 90, 180, and 365 days with special animations and rewards.
@@ -31,7 +31,7 @@ CUSTOM REMINDERS
 Set a daily reminder so you never miss your affirmation practice. Choose your perfect time and let SayBright come to you.
 
 SAYBRIGHT PREMIUM
-Unlock all 10 categories, unlimited daily affirmations, home screen widgets, watermark free share cards, the ability to record your own affirmations in your own voice, and an ad free experience.
+Unlock unlimited daily affirmations, browsing across all 10 categories and 340+ affirmations, home screen widgets, watermark free share cards, the ability to record your own affirmations in your own voice, and an ad free experience.
 
 Subscription options:
 Monthly: $0.99 per month

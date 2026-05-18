@@ -128,7 +128,7 @@ export default function OnboardingScreen() {
       categoriesSelected: selected.length,
       remindersEnabled: reminderEnabled,
     });
-    router.replace('/(tabs)');
+    router.replace('/welcome');
   };
 
   const handleNext = async () => {

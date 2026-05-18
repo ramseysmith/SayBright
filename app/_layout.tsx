@@ -28,6 +28,8 @@ import { trackEvent } from '../src/services/analytics';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+let welcomeShownThisSession = false;
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     'PlayfairDisplay-Regular': PlayfairDisplay_400Regular,
@@ -71,6 +73,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!bootChecked) return;
+    if (!splashDone) return;
     let cancelled = false;
     (async () => {
       const data = await getUserData();
@@ -79,17 +82,34 @@ export default function RootLayout() {
       setSeen((prev) => (prev === seen ? prev : seen));
       const root = segments[0];
       const inOnboarding = root === 'onboarding';
+      const inWelcome = root === 'welcome';
       const inTabs = root === '(tabs)';
-      if (!seen && inTabs) {
-        router.replace('/onboarding');
-      } else if (seen && inOnboarding) {
+
+      if (!seen) {
+        if (!inOnboarding) {
+          router.replace('/onboarding');
+        }
+        return;
+      }
+
+      if (!welcomeShownThisSession) {
+        if (!inWelcome) {
+          welcomeShownThisSession = true;
+          router.replace('/welcome');
+        } else {
+          welcomeShownThisSession = true;
+        }
+        return;
+      }
+
+      if (inOnboarding) {
         router.replace('/(tabs)');
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [bootChecked, segments, router]);
+  }, [bootChecked, splashDone, segments, router]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(() => {
@@ -128,6 +148,10 @@ export default function RootLayout() {
                   options={{ headerShown: false, gestureEnabled: false }}
                 />
                 <Stack.Screen
+                  name="welcome"
+                  options={{ headerShown: false, gestureEnabled: false }}
+                />
+                <Stack.Screen
                   name="category/[id]"
                   options={{ headerShown: false, presentation: 'card' }}
                 />
@@ -138,18 +162,6 @@ export default function RootLayout() {
                     presentation: 'modal',
                     gestureEnabled: true,
                   }}
-                />
-                <Stack.Screen
-                  name="packs"
-                  options={{
-                    headerShown: false,
-                    presentation: 'modal',
-                    gestureEnabled: true,
-                  }}
-                />
-                <Stack.Screen
-                  name="pack/[id]"
-                  options={{ headerShown: false, presentation: 'card' }}
                 />
               </Stack>
               {!splashDone ? (

@@ -14,7 +14,6 @@ export type AnalyticsEvent =
   | 'purchase_started'
   | 'purchase_completed'
   | 'purchase_cancelled'
-  | 'pack_purchased'
   | 'ad_interstitial_shown'
   | 'ad_banner_shown'
   | 'widget_tapped'
@@ -61,13 +60,6 @@ async function updateRevenueCatAttributes(
         if (properties?.totalFavorites !== undefined) {
           await Purchases.setAttributes({
             total_favorites: String(properties.totalFavorites),
-          });
-        }
-        break;
-      case 'pack_purchased':
-        if (properties?.packId) {
-          await Purchases.setAttributes({
-            last_pack_purchased: String(properties.packId),
           });
         }
         break;

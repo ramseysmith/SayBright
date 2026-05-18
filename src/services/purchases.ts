@@ -70,36 +70,6 @@ export async function restorePurchases(): Promise<boolean> {
   }
 }
 
-export async function purchasePack(productId: string): Promise<boolean> {
-  try {
-    const products = await Purchases.getProducts([productId]);
-    if (products.length === 0) return false;
-    const result = await Purchases.purchaseStoreProduct(products[0]);
-    const owned = Object.keys(
-      result.customerInfo.nonSubscriptionTransactions ?? {}
-    ).some((id) => id === productId);
-    return owned;
-  } catch (error: unknown) {
-    const e = error as { userCancelled?: boolean };
-    if (e?.userCancelled) return false;
-    throw error;
-  }
-}
-
-export async function getPurchasedPacks(): Promise<string[]> {
-  try {
-    const customerInfo = await Purchases.getCustomerInfo();
-    const txs = customerInfo.nonSubscriptionTransactions ?? [];
-    const ids = new Set<string>();
-    for (const tx of txs) {
-      if (tx.productIdentifier) ids.add(tx.productIdentifier);
-    }
-    return Array.from(ids);
-  } catch {
-    return [];
-  }
-}
-
 export type PaywallVariant = 'A' | 'B' | 'C';
 
 export async function getPaywallVariant(): Promise<PaywallVariant> {

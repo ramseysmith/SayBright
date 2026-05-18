@@ -4,7 +4,6 @@ import {
   CATEGORIES,
   Category,
 } from '../data/affirmations';
-import { getPackById } from '../data/packs';
 
 export function getAffirmationsByCategories(
   categoryIds: string[]
@@ -30,8 +29,6 @@ export interface DisplayInfo {
 export function getDisplayInfo(id: string): DisplayInfo | undefined {
   const cat = CATEGORIES.find((c) => c.id === id);
   if (cat) return { icon: cat.icon, name: cat.name, color: cat.color };
-  const pack = getPackById(id);
-  if (pack) return { icon: pack.emoji, name: pack.name, color: pack.color };
   return undefined;
 }
 

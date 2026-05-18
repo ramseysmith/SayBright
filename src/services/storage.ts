@@ -19,7 +19,6 @@ export interface UserData {
   dailyUsage: {
     date: string;
     todaySwipeCount: number;
-    browseViewCount: number;
     dailyAffirmationIds: string[];
   };
   cachedPremiumStatus: boolean;
@@ -47,7 +46,6 @@ const DEFAULT_USER_DATA: UserData = {
   dailyUsage: {
     date: '',
     todaySwipeCount: 0,
-    browseViewCount: 0,
     dailyAffirmationIds: [],
   },
   cachedPremiumStatus: false,
@@ -105,14 +103,12 @@ function freshDailyUsage(today: string): UserData['dailyUsage'] {
   return {
     date: today,
     todaySwipeCount: 0,
-    browseViewCount: 0,
     dailyAffirmationIds: [],
   };
 }
 
 export async function getDailyUsage(): Promise<{
   todaySwipeCount: number;
-  browseViewCount: number;
 }> {
   const data = await getUserData();
   const today = getTodayKey();
@@ -122,11 +118,10 @@ export async function getDailyUsage(): Promise<{
       dailyUsage: freshDailyUsage(today),
     };
     await setUserData(updated);
-    return { todaySwipeCount: 0, browseViewCount: 0 };
+    return { todaySwipeCount: 0 };
   }
   return {
     todaySwipeCount: data.dailyUsage.todaySwipeCount,
-    browseViewCount: data.dailyUsage.browseViewCount,
   };
 }
 
@@ -140,18 +135,6 @@ export async function incrementSwipeCount(): Promise<number> {
   usage.todaySwipeCount += 1;
   await setUserData({ ...data, dailyUsage: usage });
   return usage.todaySwipeCount;
-}
-
-export async function incrementBrowseCount(): Promise<number> {
-  const data = await getUserData();
-  const today = getTodayKey();
-  const usage =
-    data.dailyUsage.date === today
-      ? { ...data.dailyUsage }
-      : freshDailyUsage(today);
-  usage.browseViewCount += 1;
-  await setUserData({ ...data, dailyUsage: usage });
-  return usage.browseViewCount;
 }
 
 export async function toggleFavorite(affirmationId: string): Promise<string[]> {
@@ -211,7 +194,6 @@ export async function getOrCreateDailyAffirmationIds(
       : {
           date: today,
           todaySwipeCount: 0,
-          browseViewCount: 0,
           dailyAffirmationIds: ids,
         };
   await setUserData({ ...data, dailyUsage: usage });

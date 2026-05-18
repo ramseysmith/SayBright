@@ -20,37 +20,22 @@ import {
   getCategoryById,
   hexWithAlpha,
 } from '../../src/utils/affirmations';
-import {
-  getDailyUsage,
-  getUserData,
-  incrementBrowseCount,
-  toggleFavorite,
-} from '../../src/services/storage';
-import { useToast } from '../../src/components/Toast';
-import { usePremium } from '../../src/context/PremiumContext';
+import { getUserData, toggleFavorite } from '../../src/services/storage';
 import { useShare } from '../../src/context/ShareContext';
 import { trackEvent } from '../../src/services/analytics';
-
-const FREE_DAILY_VIEWS = 5;
 
 export default function CategoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const toast = useToast();
   const category = id ? getCategoryById(id) : undefined;
   const items = id ? getAffirmationsByCategory(id) : [];
-  const { isPremium } = usePremium();
   const { shareAffirmation } = useShare();
 
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [browseViews, setBrowseViews] = useState(0);
-  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
 
   const refresh = useCallback(async () => {
     const data = await getUserData();
-    const usage = await getDailyUsage();
     setFavorites(data.favorites);
-    setBrowseViews(usage.browseViewCount);
   }, []);
 
   useEffect(() => {
@@ -64,20 +49,6 @@ export default function CategoryDetailScreen() {
     }, [refresh])
   );
 
-  const onOpenAffirmation = async (affId: string) => {
-    if (isPremium || openedIds.has(affId)) return;
-    if (browseViews >= FREE_DAILY_VIEWS) {
-      toast.show(
-        'You have reached today’s browse limit. Unlock unlimited browsing with Premium.'
-      );
-      router.push('/paywall');
-      return;
-    }
-    const next = await incrementBrowseCount();
-    setBrowseViews(next);
-    setOpenedIds((prev) => new Set(prev).add(affId));
-  };
-
   const onToggle = async (affId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     const updated = await toggleFavorite(affId);
@@ -86,15 +57,9 @@ export default function CategoryDetailScreen() {
 
   const renderItem: ListRenderItem<Affirmation> = ({ item }) => {
     const isFav = favorites.includes(item.id);
-    const limited =
-      !isPremium &&
-      browseViews >= FREE_DAILY_VIEWS &&
-      !openedIds.has(item.id);
     return (
-      <Pressable onPress={() => onOpenAffirmation(item.id)} style={styles.row}>
-        <Text style={[styles.rowText, limited && styles.rowTextLimited]}>
-          {item.text}
-        </Text>
+      <View style={styles.row}>
+        <Text style={styles.rowText}>{item.text}</Text>
         <View style={styles.rowActions}>
           <Pressable hitSlop={12} onPress={() => onToggle(item.id)}>
             <Ionicons
@@ -115,7 +80,7 @@ export default function CategoryDetailScreen() {
             />
           </Pressable>
         </View>
-      </Pressable>
+      </View>
     );
   };
 
@@ -221,9 +186,6 @@ const styles = StyleSheet.create({
     color: COLORS.textPrimary,
     lineHeight: 22,
     marginRight: SPACING.md,
-  },
-  rowTextLimited: {
-    color: COLORS.textSecondary,
   },
   rowActions: { flexDirection: 'row', alignItems: 'center' },
   iconSpacer: { marginLeft: SPACING.md },
