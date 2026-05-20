@@ -62,6 +62,9 @@ import { Alert } from 'react-native';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const FREE_DAILY_LIMIT = 3;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
+const SESSION_OPENER_DELAY_MS = 2500;
+
+let hasShownSessionInterstitial = false;
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
@@ -193,6 +196,19 @@ export default function TodayScreen() {
       preloadInterstitial();
     }
   }, [isPremium]);
+
+  useEffect(() => {
+    if (isPremium) return;
+    if (hasShownSessionInterstitial) return;
+    if (loading) return;
+    const timer = setTimeout(() => {
+      const shown = showInterstitial();
+      if (shown) {
+        hasShownSessionInterstitial = true;
+      }
+    }, SESSION_OPENER_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [isPremium, loading]);
 
   const lightHaptic = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -460,7 +476,7 @@ export default function TodayScreen() {
         start={{ x: 0, y: 0 }}
         end={{ x: 0.6, y: 1 }}
       />
-      <SafeAreaView edges={['top', 'bottom']} style={styles.safe}>
+      <SafeAreaView edges={['top']} style={styles.safe}>
         <View style={styles.header}>
           {!isPremium ? (
             <GoPremiumPill onPress={() => router.push('/paywall')} />

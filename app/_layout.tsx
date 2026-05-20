@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -23,12 +23,22 @@ import { ToastProvider } from '../src/components/Toast';
 import { PremiumProvider } from '../src/context/PremiumContext';
 import { ShareProvider } from '../src/context/ShareContext';
 import { initializePurchases } from '../src/services/purchases';
+import { WelcomeScreen } from '../src/components/WelcomeScreen';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import { trackEvent } from '../src/services/analytics';
+import { preloadInterstitial } from '../src/services/ads';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-let welcomeShownThisSession = false;
+const OnboardingFlowContext = createContext<{
+  completeOnboarding: () => void;
+}>({
+  completeOnboarding: () => {},
+});
+
+export function useOnboardingFlow() {
+  return useContext(OnboardingFlowContext);
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -40,8 +50,9 @@ export default function RootLayout() {
   });
 
   const [bootChecked, setBootChecked] = useState(false);
-  const [hasSeenOnboarding, setSeen] = useState<boolean | null>(null);
-  const [splashDone, setSplashDone] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const segments = useSegments();
   const router = useRouter();
 
@@ -60,8 +71,9 @@ export default function RootLayout() {
         sessionCount: current.sessionCount + 1,
       }));
       trackEvent('app_open', { sessionCount: updated.sessionCount });
-      setSeen(updated.preferences.hasSeenOnboarding);
+      setNeedsOnboarding(!updated.preferences.hasSeenOnboarding);
       setBootChecked(true);
+      preloadInterstitial();
     })();
   }, []);
 
@@ -73,43 +85,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (!bootChecked) return;
-    if (!splashDone) return;
-    let cancelled = false;
-    (async () => {
-      const data = await getUserData();
-      if (cancelled) return;
-      const seen = data.preferences.hasSeenOnboarding;
-      setSeen((prev) => (prev === seen ? prev : seen));
-      const root = segments[0];
-      const inOnboarding = root === 'onboarding';
-      const inWelcome = root === 'welcome';
-      const inTabs = root === '(tabs)';
-
-      if (!seen) {
-        if (!inOnboarding) {
-          router.replace('/onboarding');
-        }
-        return;
-      }
-
-      if (!welcomeShownThisSession) {
-        if (!inWelcome) {
-          welcomeShownThisSession = true;
-          router.replace('/welcome');
-        } else {
-          welcomeShownThisSession = true;
-        }
-        return;
-      }
-
-      if (inOnboarding) {
-        router.replace('/(tabs)');
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [bootChecked, splashDone, segments, router]);
+    if (needsOnboarding === null) return;
+    const root = segments[0];
+    const inOnboarding = root === 'onboarding';
+    const inTabs = root === '(tabs)';
+    if (needsOnboarding && inTabs) {
+      router.replace('/onboarding');
+    } else if (!needsOnboarding && inOnboarding) {
+      router.replace('/(tabs)');
+    }
+  }, [bootChecked, needsOnboarding, segments, router]);
 
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(() => {
@@ -127,6 +112,18 @@ export default function RootLayout() {
     }
   }, [url, router]);
 
+  const handleWelcomeDismiss = useCallback(() => {
+    setShowWelcome(false);
+  }, []);
+
+  const handleSplashComplete = useCallback(() => {
+    setShowSplash(false);
+  }, []);
+
+  const completeOnboarding = useCallback(() => {
+    setNeedsOnboarding(false);
+  }, []);
+
   if (!fontsLoaded || !bootChecked) {
     return (
       <View style={styles.loading}>
@@ -135,20 +132,21 @@ export default function RootLayout() {
     );
   }
 
+  const inOnboarding = segments[0] === 'onboarding';
+  const overlayVisible =
+    showWelcome && needsOnboarding === false && !inOnboarding;
+
   return (
     <GestureHandlerRootView style={styles.flex}>
       <SafeAreaProvider>
         <PremiumProvider>
           <ToastProvider>
             <ShareProvider>
+              <OnboardingFlowContext.Provider value={{ completeOnboarding }}>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="onboarding"
-                  options={{ headerShown: false, gestureEnabled: false }}
-                />
-                <Stack.Screen
-                  name="welcome"
                   options={{ headerShown: false, gestureEnabled: false }}
                 />
                 <Stack.Screen
@@ -164,9 +162,16 @@ export default function RootLayout() {
                   }}
                 />
               </Stack>
-              {!splashDone ? (
-                <AnimatedSplash onFinished={() => setSplashDone(true)} />
+              {overlayVisible ? (
+                <WelcomeScreen
+                  onDismiss={handleWelcomeDismiss}
+                  startAnimations={!showSplash}
+                />
               ) : null}
+              {showSplash ? (
+                <AnimatedSplash onComplete={handleSplashComplete} />
+              ) : null}
+              </OnboardingFlowContext.Provider>
             </ShareProvider>
           </ToastProvider>
         </PremiumProvider>

@@ -36,6 +36,7 @@ import {
   getRandomNotificationAffirmation,
 } from '../src/services/notifications';
 import { getAffirmationsByCategories } from '../src/utils/affirmations';
+import { useOnboardingFlow } from './_layout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -97,6 +98,7 @@ export default function OnboardingScreen() {
     'gratitude',
   ]);
   const router = useRouter();
+  const { completeOnboarding } = useOnboardingFlow();
 
   const pages: PageItem[] = [...SLIDES, { key: 'focus' }, { key: 'reminder' }];
   const totalPages = pages.length;
@@ -128,7 +130,8 @@ export default function OnboardingScreen() {
       categoriesSelected: selected.length,
       remindersEnabled: reminderEnabled,
     });
-    router.replace('/welcome');
+    completeOnboarding();
+    router.replace('/(tabs)');
   };
 
   const handleNext = async () => {

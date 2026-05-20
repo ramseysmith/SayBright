@@ -11,6 +11,7 @@ import {
   PurchasesPackage,
 } from '../services/purchases';
 import { usePremium } from '../context/PremiumContext';
+import { setCachedPremiumStatus } from '../services/storage';
 import { useToast } from '../components/Toast';
 import { trackEvent } from '../services/analytics';
 
@@ -40,7 +41,7 @@ function resolvePackages(offering: PurchasesOffering | null): ResolvedPackages {
 
 export function usePaywallController(variant: 'A' | 'B' | 'C') {
   const router = useRouter();
-  const { refreshPremiumStatus } = usePremium();
+  const { refreshPremiumStatus, setPremiumOptimistic } = usePremium();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -78,20 +79,31 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
       toast.show('That plan is not available right now.');
       return;
     }
+    if (__DEV__) {
+      console.log('[Paywall] purchase pressed', {
+        variant,
+        plan: selected,
+        package: pkg.identifier,
+      });
+    }
     Haptics.selectionAsync();
     trackEvent('purchase_started', { variant, plan: selected });
     setPurchasing(true);
     try {
       const ok = await purchasePackage(pkg);
+      if (__DEV__) console.log('[Paywall] purchasePackage returned:', ok);
       if (ok) {
+        setPremiumOptimistic(true);
+        await setCachedPremiumStatus(true).catch(() => {});
         trackEvent('purchase_completed', { variant, plan: selected });
-        await refreshPremiumStatus();
+        refreshPremiumStatus().catch(() => {});
         toast.show('Welcome to SayBright Premium.');
         router.back();
       } else {
         trackEvent('purchase_cancelled', { variant, plan: selected });
       }
-    } catch {
+    } catch (error) {
+      console.warn('[Paywall] purchase error:', error);
       Alert.alert(
         'Purchase failed',
         'Something went wrong. Please try again in a moment.'
@@ -105,7 +117,9 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
     setRestoring(true);
     const ok = await restorePurchases();
     if (ok) {
-      await refreshPremiumStatus();
+      setPremiumOptimistic(true);
+      await setCachedPremiumStatus(true).catch(() => {});
+      refreshPremiumStatus().catch(() => {});
       toast.show('Purchases restored successfully.');
       router.back();
     } else {

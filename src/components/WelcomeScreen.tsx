@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
@@ -12,10 +13,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '../src/constants/theme';
-import { getTimeOfDay } from '../src/utils/time';
-import { getUserData } from '../src/services/storage';
+import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { getTimeOfDay } from '../utils/time';
+import { getUserData } from '../services/storage';
 
 const SUBTITLES = [
   'Today is full of possibility.',
@@ -40,8 +40,15 @@ function getGreeting(): string {
   return 'Welcome Back';
 }
 
-export default function WelcomeScreen() {
-  const router = useRouter();
+interface WelcomeScreenProps {
+  onDismiss: () => void;
+  startAnimations?: boolean;
+}
+
+export function WelcomeScreen({
+  onDismiss,
+  startAnimations = true,
+}: WelcomeScreenProps) {
   const { gradient } = useMemo(() => getTimeOfDay(), []);
   const greeting = useMemo(() => getGreeting(), []);
   const subtitle = useMemo(
@@ -59,20 +66,15 @@ export default function WelcomeScreen() {
   const sunY = useSharedValue(100);
   const sunOpacity = useSharedValue(0);
   const sunScale = useSharedValue(0.7);
-
   const greetY = useSharedValue(-20);
   const greetOpacity = useSharedValue(0);
-
   const subY = useSharedValue(10);
   const subOpacity = useSharedValue(0);
-
   const streakOpacity = useSharedValue(0);
-
   const btnY = useSharedValue(40);
   const btnOpacity = useSharedValue(0);
-
   const screenOpacity = useSharedValue(1);
-  const navigatedRef = useRef(false);
+  const dismissedRef = useRef(false);
 
   useEffect(() => {
     (async () => {
@@ -82,6 +84,7 @@ export default function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
+    if (!startAnimations) return;
     sunY.value = withTiming(0, {
       duration: 800,
       easing: Easing.out(Easing.quad),
@@ -103,24 +106,15 @@ export default function WelcomeScreen() {
 
     streakOpacity.value = withDelay(1600, withTiming(1, { duration: 600 }));
 
-    btnY.value = withDelay(
-      2200,
-      withSpring(0, { damping: 10, stiffness: 90 })
-    );
-    btnOpacity.value = withDelay(
-      2200,
-      withTiming(1, { duration: 800 }, (finished) => {
-        if (finished) {
-          // light haptic on button appear scheduled via JS thread
-        }
-      })
-    );
+    btnY.value = withDelay(2200, withSpring(0, { damping: 10, stiffness: 90 }));
+    btnOpacity.value = withDelay(2200, withTiming(1, { duration: 800 }));
 
     const t = setTimeout(() => {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     }, 2400);
     return () => clearTimeout(t);
   }, [
+    startAnimations,
     sunY,
     sunOpacity,
     sunScale,
@@ -156,22 +150,19 @@ export default function WelcomeScreen() {
     opacity: screenOpacity.value,
   }));
 
-  const onContinue = () => {
-    if (navigatedRef.current) return;
-    navigatedRef.current = true;
+  const handleDismiss = () => {
+    if (dismissedRef.current) return;
+    dismissedRef.current = true;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     screenOpacity.value = withTiming(0, { duration: 400 }, (finished) => {
       if (finished) {
-        // navigation handled in JS thread below
+        runOnJS(onDismiss)();
       }
     });
-    setTimeout(() => {
-      router.replace('/(tabs)');
-    }, 400);
   };
 
   return (
-    <Animated.View style={[styles.root, screenStyle]}>
+    <Animated.View style={[styles.overlay, screenStyle]} pointerEvents="auto">
       <StatusBar style={gradient.statusBar} />
       <LinearGradient
         colors={gradient.colors}
@@ -195,7 +186,7 @@ export default function WelcomeScreen() {
           ) : null}
         </View>
         <Animated.View style={[styles.ctaWrap, btnStyle]}>
-          <Pressable onPress={onContinue} style={styles.cta}>
+          <Pressable onPress={handleDismiss} style={styles.cta}>
             <Text style={styles.ctaText}>See Today's Inspiration</Text>
           </Pressable>
         </Animated.View>
@@ -205,7 +196,12 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
+    backgroundColor: COLORS.cream,
+  },
   safe: { flex: 1, justifyContent: 'space-between' },
   content: {
     flex: 1,

@@ -1,51 +1,47 @@
 import { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { COLORS, FONTS } from '../constants/theme';
 
 interface AnimatedSplashProps {
-  onFinished: () => void;
+  onComplete: () => void;
 }
 
-export function AnimatedSplash({ onFinished }: AnimatedSplashProps) {
+export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
   const iconScale = useSharedValue(0.8);
   const iconOpacity = useSharedValue(0);
   const titleOpacity = useSharedValue(0);
   const taglineOpacity = useSharedValue(0);
-  const overallOpacity = useSharedValue(1);
+  const screenOpacity = useSharedValue(1);
 
   useEffect(() => {
-    iconScale.value = withSpring(1, { damping: 12, stiffness: 140 });
-    iconOpacity.value = withTiming(1, {
+    iconScale.value = withTiming(1, {
       duration: 600,
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.out(Easing.ease),
     });
-    titleOpacity.value = withDelay(
-      400,
-      withTiming(1, { duration: 500, easing: Easing.out(Easing.cubic) })
-    );
-    taglineOpacity.value = withDelay(
-      900,
-      withTiming(1, { duration: 300, easing: Easing.out(Easing.cubic) })
-    );
-    overallOpacity.value = withDelay(
+    iconOpacity.value = withTiming(1, { duration: 600 });
+    titleOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
+    taglineOpacity.value = withDelay(900, withTiming(1, { duration: 300 }));
+    screenOpacity.value = withDelay(
       1200,
-      withTiming(0, { duration: 300, easing: Easing.in(Easing.cubic) }, (finished) => {
+      withTiming(0, { duration: 300 }, (finished) => {
         if (finished) {
-          runOnJS(onFinished)();
+          runOnJS(onComplete)();
         }
       })
     );
-  }, [iconOpacity, iconScale, onFinished, overallOpacity, taglineOpacity, titleOpacity]);
+  }, [iconScale, iconOpacity, titleOpacity, taglineOpacity, screenOpacity, onComplete]);
 
+  const screenStyle = useAnimatedStyle(() => ({
+    opacity: screenOpacity.value,
+  }));
   const iconStyle = useAnimatedStyle(() => ({
     opacity: iconOpacity.value,
     transform: [{ scale: iconScale.value }],
@@ -56,15 +52,10 @@ export function AnimatedSplash({ onFinished }: AnimatedSplashProps) {
   const taglineStyle = useAnimatedStyle(() => ({
     opacity: taglineOpacity.value,
   }));
-  const containerStyle = useAnimatedStyle(() => ({
-    opacity: overallOpacity.value,
-  }));
 
   return (
-    <Animated.View style={[styles.container, containerStyle]} pointerEvents="none">
-      <Animated.View style={iconStyle}>
-        <Text style={styles.icon}>☀️</Text>
-      </Animated.View>
+    <Animated.View style={[styles.container, screenStyle]} pointerEvents="none">
+      <Animated.Text style={[styles.icon, iconStyle]}>☀️</Animated.Text>
       <Animated.Text style={[styles.title, titleStyle]}>SayBright</Animated.Text>
       <Animated.Text style={[styles.tagline, taglineStyle]}>
         Speak your brightest self into existence
@@ -76,20 +67,21 @@ export function AnimatedSplash({ onFinished }: AnimatedSplashProps) {
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 99999,
+    elevation: 99999,
     backgroundColor: COLORS.primaryGold,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1000,
   },
   icon: {
     fontSize: 80,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   title: {
     fontFamily: FONTS.displayBold,
     fontSize: 36,
     color: COLORS.white,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   tagline: {
     fontFamily: FONTS.bodyRegular,
