@@ -4,7 +4,7 @@ import Purchases, {
   PurchasesPackage,
 } from 'react-native-purchases';
 
-const REVENUECAT_API_KEY_IOS = 'test_jsbouKJlEVoEVDxZGbdKFavGHyd';
+const REVENUECAT_API_KEY_IOS = 'appl_VOVMWNILkJsFKGXyPDbtCmZYBJb';
 const REVENUECAT_API_KEY_ANDROID = 'test_jsbouKJlEVoEVDxZGbdKFavGHyd';
 
 export const PRODUCT_IDS = {
