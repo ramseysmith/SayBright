@@ -16,6 +16,11 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import { getTimeOfDay } from '../utils/time';
 import { getUserData } from '../services/storage';
+import { usePremium } from '../context/PremiumContext';
+import { showInterstitial } from '../services/ads';
+
+const SESSION_OPENER_DELAY_MS = 700;
+let hasShownSessionInterstitial = false;
 
 const SUBTITLES = [
   'Today is full of possibility.',
@@ -56,12 +61,19 @@ export function WelcomeScreen({
     []
   );
   const [streakCount, setStreakCount] = useState(0);
+  const { isPremium } = usePremium();
 
   const isLightText = gradient.statusBar === 'light';
   const textColor = isLightText ? COLORS.white : COLORS.textPrimary;
   const subtleColor = isLightText
     ? 'rgba(255, 255, 255, 0.85)'
     : 'rgba(26, 26, 46, 0.7)';
+  const ctaBackground = isLightText
+    ? 'rgba(255, 255, 255, 0.2)'
+    : 'rgba(26, 26, 46, 0.85)';
+  const ctaBorder = isLightText
+    ? 'rgba(255, 255, 255, 0.4)'
+    : 'rgba(26, 26, 46, 0.5)';
 
   const sunY = useSharedValue(100);
   const sunOpacity = useSharedValue(0);
@@ -159,6 +171,14 @@ export function WelcomeScreen({
         runOnJS(onDismiss)();
       }
     });
+    if (!isPremium && !hasShownSessionInterstitial) {
+      setTimeout(() => {
+        const shown = showInterstitial();
+        if (shown) {
+          hasShownSessionInterstitial = true;
+        }
+      }, SESSION_OPENER_DELAY_MS);
+    }
   };
 
   return (
@@ -186,7 +206,13 @@ export function WelcomeScreen({
           ) : null}
         </View>
         <Animated.View style={[styles.ctaWrap, btnStyle]}>
-          <Pressable onPress={handleDismiss} style={styles.cta}>
+          <Pressable
+            onPress={handleDismiss}
+            style={[
+              styles.cta,
+              { backgroundColor: ctaBackground, borderColor: ctaBorder },
+            ]}
+          >
             <Text style={styles.ctaText}>See Today's Inspiration</Text>
           </Pressable>
         </Animated.View>
@@ -237,8 +263,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cta: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderColor: 'rgba(255, 255, 255, 0.4)',
     borderWidth: 1,
     borderRadius: 16,
     paddingVertical: 18,

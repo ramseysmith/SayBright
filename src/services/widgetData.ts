@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setWidgetData as setNativeWidgetData } from '../../modules/widget-storage';
 
 const WIDGET_DATA_KEY = '@saybright_widget_data';
 
@@ -25,7 +26,12 @@ export async function updateWidgetData(
           categoryEmoji: '✨',
           categoryName: 'SayBright',
         };
+    // Mirror to AsyncStorage so the JS layer can read the latest payload back
+    // (useful for previews, tests, or future surfaces).
     await AsyncStorage.setItem(WIDGET_DATA_KEY, JSON.stringify(payload));
+    // Push to the shared App Group container so the iOS WidgetKit extension
+    // can read it. Also reloads the widget timelines.
+    setNativeWidgetData(payload);
   } catch (error) {
     console.warn('Failed to update widget data:', error);
   }

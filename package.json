@@ -42,6 +42,7 @@
     "react-native-view-shot": "^4.0.3"
   },
   "devDependencies": {
+    "@bacons/apple-targets": "^4.0.7",
     "@types/react": "~19.1.0",
     "typescript": "~5.9.2"
   },

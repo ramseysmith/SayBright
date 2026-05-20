@@ -16,6 +16,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
+      "@bacons/apple-targets",
       [
         "react-native-google-mobile-ads",
         {
@@ -34,6 +35,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.saybright.app",
       "buildNumber": "1",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.saybright.app"]
+      },
       "infoPlist": {
         "NSUserTrackingUsageDescription": "This allows SayBright to show you more relevant content and support the free version of the app.",
         "ITSAppUsesNonExemptEncryption": false

@@ -231,7 +231,7 @@ export default function SettingsScreen() {
     }
     Alert.alert(
       'Add SayBright Widget',
-      'Long press your home screen, tap the plus button in the top left, then search for SayBright.',
+      'Home screen: long press an empty area, tap the plus button, then search for SayBright. Lock screen: edit your lock screen, tap a widget slot, then pick SayBright.',
       [{ text: 'Got it' }]
     );
   };

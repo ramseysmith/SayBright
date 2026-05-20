@@ -1,0 +1,7 @@
+{
+  "name": "widget-storage",
+  "version": "1.0.0",
+  "description": "Bridge between SayBright JS code and the iOS widget extension via App Group UserDefaults.",
+  "main": "index.ts",
+  "private": true
+}
