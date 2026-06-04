@@ -31,11 +31,9 @@ import { usePremium } from '../../src/context/PremiumContext';
 import { restorePurchases } from '../../src/services/purchases';
 import {
   cancelAllReminders,
-  getRandomNotificationAffirmation,
   requestNotificationPermissions,
   scheduleDailyReminder,
 } from '../../src/services/notifications';
-import { getAffirmationsByCategories } from '../../src/utils/affirmations';
 import { CROSS_PROMO, URLS } from '../../src/constants/urls';
 import {
   deleteRecording,
@@ -111,12 +109,7 @@ export default function SettingsScreen() {
     hour: number,
     minute: number
   ) => {
-    const data = await getUserData();
-    const pool = getAffirmationsByCategories(
-      data.preferences.selectedCategories
-    );
-    const text = getRandomNotificationAffirmation(pool);
-    await scheduleDailyReminder(hour, minute, text);
+    await scheduleDailyReminder(hour, minute);
   };
 
   const handleReminderToggle = async (next: boolean) => {

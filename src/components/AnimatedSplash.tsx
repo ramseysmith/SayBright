@@ -12,9 +12,16 @@ import { COLORS, FONTS } from '../constants/theme';
 
 interface AnimatedSplashProps {
   onComplete: () => void;
+  onBeginFadeOut?: () => void;
 }
 
-export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
+const TAGLINE_FADE_IN_DURATION = 500;
+const TAGLINE_HOLD_DURATION = 900;
+const FADE_OUT_START_DELAY =
+  900 /* tagline start */ + TAGLINE_FADE_IN_DURATION + TAGLINE_HOLD_DURATION;
+const FADE_OUT_DURATION = 600;
+
+export function AnimatedSplash({ onComplete, onBeginFadeOut }: AnimatedSplashProps) {
   const iconScale = useSharedValue(0.8);
   const iconOpacity = useSharedValue(0);
   const titleOpacity = useSharedValue(0);
@@ -28,16 +35,34 @@ export function AnimatedSplash({ onComplete }: AnimatedSplashProps) {
     });
     iconOpacity.value = withTiming(1, { duration: 600 });
     titleOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
-    taglineOpacity.value = withDelay(900, withTiming(1, { duration: 300 }));
-    screenOpacity.value = withDelay(
-      1200,
-      withTiming(0, { duration: 300 }, (finished) => {
-        if (finished) {
-          runOnJS(onComplete)();
-        }
-      })
+    taglineOpacity.value = withDelay(
+      900,
+      withTiming(1, { duration: TAGLINE_FADE_IN_DURATION })
     );
-  }, [iconScale, iconOpacity, titleOpacity, taglineOpacity, screenOpacity, onComplete]);
+
+    const fadeStartTimer = setTimeout(() => {
+      onBeginFadeOut?.();
+      screenOpacity.value = withTiming(
+        0,
+        { duration: FADE_OUT_DURATION, easing: Easing.inOut(Easing.ease) },
+        (finished) => {
+          if (finished) {
+            runOnJS(onComplete)();
+          }
+        }
+      );
+    }, FADE_OUT_START_DELAY);
+
+    return () => clearTimeout(fadeStartTimer);
+  }, [
+    iconScale,
+    iconOpacity,
+    titleOpacity,
+    taglineOpacity,
+    screenOpacity,
+    onComplete,
+    onBeginFadeOut,
+  ]);
 
   const screenStyle = useAnimatedStyle(() => ({
     opacity: screenOpacity.value,

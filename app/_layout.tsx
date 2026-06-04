@@ -53,6 +53,7 @@ export default function RootLayout() {
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
   const [showWelcome, setShowWelcome] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
+  const [splashFadingOut, setSplashFadingOut] = useState(false);
   const segments = useSegments();
   const router = useRouter();
 
@@ -120,6 +121,10 @@ export default function RootLayout() {
     setShowSplash(false);
   }, []);
 
+  const handleSplashBeginFadeOut = useCallback(() => {
+    setSplashFadingOut(true);
+  }, []);
+
   const completeOnboarding = useCallback(() => {
     setNeedsOnboarding(false);
   }, []);
@@ -165,11 +170,14 @@ export default function RootLayout() {
               {overlayVisible ? (
                 <WelcomeScreen
                   onDismiss={handleWelcomeDismiss}
-                  startAnimations={!showSplash}
+                  startAnimations={!showSplash || splashFadingOut}
                 />
               ) : null}
               {showSplash ? (
-                <AnimatedSplash onComplete={handleSplashComplete} />
+                <AnimatedSplash
+                  onComplete={handleSplashComplete}
+                  onBeginFadeOut={handleSplashBeginFadeOut}
+                />
               ) : null}
               </OnboardingFlowContext.Provider>
             </ShareProvider>

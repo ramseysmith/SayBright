@@ -33,9 +33,7 @@ import { trackEvent } from '../src/services/analytics';
 import {
   requestNotificationPermissions,
   scheduleDailyReminder,
-  getRandomNotificationAffirmation,
 } from '../src/services/notifications';
-import { getAffirmationsByCategories } from '../src/utils/affirmations';
 import { useOnboardingFlow } from './_layout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -176,10 +174,7 @@ export default function OnboardingScreen() {
           }
           if (item.key === 'reminder') {
             return (
-              <ReminderSlide
-                selectedCategories={selected}
-                onComplete={finishOnboarding}
-              />
+              <ReminderSlide onComplete={finishOnboarding} />
             );
           }
           return <IntroSlide slide={item as Slide} />;
@@ -328,10 +323,8 @@ function FocusSlide({
 type ReminderPhase = 'idle' | 'requesting' | 'denied' | 'success';
 
 function ReminderSlide({
-  selectedCategories,
   onComplete,
 }: {
-  selectedCategories: string[];
   onComplete: (enabled: boolean, time: string) => Promise<void>;
 }) {
   const [date, setDate] = useState(() => {
@@ -362,9 +355,7 @@ function ReminderSlide({
       setPhase('denied');
       return;
     }
-    const pool = getAffirmationsByCategories(selectedCategories);
-    const text = getRandomNotificationAffirmation(pool);
-    await scheduleDailyReminder(date.getHours(), date.getMinutes(), text);
+    await scheduleDailyReminder(date.getHours(), date.getMinutes());
     setPhase('success');
     setTimeout(() => {
       onComplete(true, formatHHMM(date));

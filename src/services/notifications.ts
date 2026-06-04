@@ -40,18 +40,41 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return true;
 }
 
+const REMINDER_TITLES = [
+  '☀️ Your affirmation is ready',
+  '✨ Your daily moment awaits',
+  '🌅 A bright thought is waiting',
+  '🔥 Keep your streak going',
+];
+
+const REMINDER_BODIES = [
+  'Open SayBright to start today bright.',
+  'Tap in for a moment of brightness.',
+  "Open SayBright for today's affirmation.",
+  'Pause, breathe, and open SayBright.',
+];
+
+function pickReminderCopy(): { title: string; body: string } {
+  const titleIndex = Math.floor(Math.random() * REMINDER_TITLES.length);
+  const bodyIndex = Math.floor(Math.random() * REMINDER_BODIES.length);
+  return {
+    title: REMINDER_TITLES[titleIndex],
+    body: REMINDER_BODIES[bodyIndex],
+  };
+}
+
 export async function scheduleDailyReminder(
   hour: number,
-  minute: number,
-  affirmationText: string
+  minute: number
 ): Promise<string | null> {
   await cancelAllReminders();
 
   try {
+    const { title, body } = pickReminderCopy();
     const id = await Notifications.scheduleNotificationAsync({
       content: {
-        title: '☀️ Your affirmation is ready',
-        body: affirmationText,
+        title,
+        body,
         data: { screen: 'today' },
       },
       trigger: {
@@ -73,12 +96,4 @@ export async function cancelAllReminders(): Promise<void> {
   } catch {
     // ignore
   }
-}
-
-export function getRandomNotificationAffirmation(
-  affirmations: { text: string }[]
-): string {
-  if (affirmations.length === 0) return 'Today is full of possibility.';
-  const index = Math.floor(Math.random() * affirmations.length);
-  return affirmations[index].text;
 }
