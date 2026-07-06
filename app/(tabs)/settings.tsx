@@ -44,6 +44,7 @@ import {
 import { AFFIRMATIONS } from '../../src/data/affirmations';
 import { Audio } from 'expo-av';
 import { trackEvent } from '../../src/services/analytics';
+import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 
 function parseHHMM(value: string): { hour: number; minute: number } {
   const [h, m] = value.split(':').map((v) => parseInt(v, 10));
@@ -436,6 +437,8 @@ export default function SettingsScreen() {
 
         <Text style={styles.footer}>SayBright v1.0.0</Text>
       </ScrollView>
+
+      <BannerAdWrapper />
 
       <Modal
         visible={pickerOpen}

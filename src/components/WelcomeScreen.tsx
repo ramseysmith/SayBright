@@ -16,11 +16,6 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import { getTimeOfDay } from '../utils/time';
 import { getUserData } from '../services/storage';
-import { usePremium } from '../context/PremiumContext';
-import { showInterstitial } from '../services/ads';
-
-const SESSION_OPENER_DELAY_MS = 700;
-let hasShownSessionInterstitial = false;
 
 const SUBTITLES = [
   'Today is full of possibility.',
@@ -61,7 +56,6 @@ export function WelcomeScreen({
     []
   );
   const [streakCount, setStreakCount] = useState(0);
-  const { isPremium } = usePremium();
 
   const isLightText = gradient.statusBar === 'light';
   const textColor = isLightText ? COLORS.white : COLORS.textPrimary;
@@ -171,14 +165,6 @@ export function WelcomeScreen({
         runOnJS(onDismiss)();
       }
     });
-    if (!isPremium && !hasShownSessionInterstitial) {
-      setTimeout(() => {
-        const shown = showInterstitial();
-        if (shown) {
-          hasShownSessionInterstitial = true;
-        }
-      }, SESSION_OPENER_DELAY_MS);
-    }
   };
 
   return (

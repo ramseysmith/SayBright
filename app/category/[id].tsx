@@ -23,6 +23,8 @@ import {
 import { getUserData, toggleFavorite } from '../../src/services/storage';
 import { useShare } from '../../src/context/ShareContext';
 import { trackEvent } from '../../src/services/analytics';
+import { usePremium } from '../../src/context/PremiumContext';
+import { showInterstitial } from '../../src/services/ads';
 
 export default function CategoryDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -30,6 +32,7 @@ export default function CategoryDetailScreen() {
   const category = id ? getCategoryById(id) : undefined;
   const items = id ? getAffirmationsByCategory(id) : [];
   const { shareAffirmation } = useShare();
+  const { isPremium } = usePremium();
 
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -51,8 +54,12 @@ export default function CategoryDetailScreen() {
 
   const onToggle = async (affId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    const wasFavorited = favorites.includes(affId);
     const updated = await toggleFavorite(affId);
     setFavorites(updated);
+    if (!wasFavorited && !isPremium) {
+      showInterstitial();
+    }
   };
 
   const renderItem: ListRenderItem<Affirmation> = ({ item }) => {

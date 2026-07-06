@@ -67,7 +67,6 @@ export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [sessionSwipes, setSessionSwipes] = useState(0);
   const [loading, setLoading] = useState(true);
   const [streakCount, setStreakCount] = useState(0);
   const [milestone, setMilestone] = useState<number | null>(null);
@@ -218,13 +217,6 @@ export default function TodayScreen() {
       } else {
         setCurrentIndex((i) => i + 1);
         incrementSwipeCount().catch(() => {});
-        setSessionSwipes((s) => {
-          const next = s + 1;
-          if (next > 0 && next % 3 === 0) {
-            showInterstitial();
-          }
-          return next;
-        });
       }
     } else {
       if (isPremium) {
@@ -438,12 +430,16 @@ export default function TodayScreen() {
       withSpring(1.3, { damping: 8, stiffness: 200 }),
       withSpring(1, { damping: 12, stiffness: 200 })
     );
+    const wasFavorited = favorites.includes(current.id);
     const updated = await toggleFavorite(current.id);
     setFavorites(updated);
     trackEvent('affirmation_favorited', {
       affirmationId: current.id,
       totalFavorites: updated.length,
     });
+    if (!wasFavorited && !isPremium) {
+      showInterstitial();
+    }
   };
 
   const indicatorText =
