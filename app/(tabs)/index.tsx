@@ -27,7 +27,6 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
 import {
-  getOrCreateDailyAffirmationIds,
   getUserData,
   incrementSwipeCount,
   toggleFavorite,
@@ -35,6 +34,8 @@ import {
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import {
   getAffirmationsByCategories,
+  getDailyAffirmations,
+  getTodayKey,
   shuffle,
 } from '../../src/utils/affirmations';
 import { getTimeOfDay } from '../../src/utils/time';
@@ -48,7 +49,6 @@ import { useShare } from '../../src/context/ShareContext';
 import { updateWidgetData } from '../../src/services/widgetData';
 import { trackEvent } from '../../src/services/analytics';
 import { getDisplayInfo } from '../../src/utils/affirmations';
-import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 import {
   deleteRecording,
   getRecordingUri,
@@ -60,7 +60,7 @@ import { Audio } from 'expo-av';
 import { Alert } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const FREE_DAILY_LIMIT = 3;
+const FREE_DAILY_LIMIT = 1;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
 
 export default function TodayScreen() {
@@ -130,25 +130,11 @@ export default function TodayScreen() {
         baseCandidates.length > 0 ? baseCandidates : AFFIRMATIONS
       );
 
-      let resolvedPool: Affirmation[];
-      if (isPremium) {
-        resolvedPool = fullShuffled;
-      } else {
-        const lookup = new Map<string, Affirmation>();
-        for (const a of AFFIRMATIONS) {
-          lookup.set(a.id, a);
-        }
-        const dailyIds = await getOrCreateDailyAffirmationIds(() =>
-          fullShuffled.slice(0, FREE_DAILY_LIMIT).map((a) => a.id)
-        );
-        const resolved = dailyIds
-          .map((id) => lookup.get(id))
-          .filter((a): a is Affirmation => Boolean(a));
-        resolvedPool =
-          resolved.length > 0
-            ? resolved
-            : fullShuffled.slice(0, FREE_DAILY_LIMIT);
-      }
+      // Free users get one affirmation a day, picked deterministically from the
+      // date so it matches the one their reminder notification carries.
+      const resolvedPool: Affirmation[] = isPremium
+        ? fullShuffled
+        : getDailyAffirmations(getTodayKey(), selected, FREE_DAILY_LIMIT);
 
       if (!active) return;
       setPool(resolvedPool);
@@ -562,11 +548,6 @@ export default function TodayScreen() {
           ) : null}
         </View>
 
-        {!isPremium ? (
-          <View style={styles.bannerAnchor}>
-            <BannerAdWrapper />
-          </View>
-        ) : null}
       </SafeAreaView>
 
       <MilestoneCelebration
@@ -808,9 +789,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bannerAnchor: {
-    width: '100%',
-    alignItems: 'center',
   },
 });

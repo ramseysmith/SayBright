@@ -20,7 +20,6 @@ import {
   getCategoryById,
 } from '../../src/utils/affirmations';
 import { useShare } from '../../src/context/ShareContext';
-import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 
 export default function FavoritesScreen() {
   const [items, setItems] = useState<Affirmation[]>([]);
@@ -102,7 +101,6 @@ export default function FavoritesScreen() {
             Tap the heart on any affirmation to save it here.
           </Text>
         </View>
-        <BannerAdWrapper />
       </SafeAreaView>
     );
   }
@@ -117,7 +115,6 @@ export default function FavoritesScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         contentContainerStyle={styles.listContent}
       />
-      <BannerAdWrapper />
     </SafeAreaView>
   );
 }

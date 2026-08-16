@@ -45,9 +45,57 @@ export function shuffle<T>(array: T[]): T[] {
   return shuffled;
 }
 
+export function getDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 export function getTodayKey(): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  return getDateKey(new Date());
+}
+
+// FNV-1a. Turns a date plus the user's categories into a stable seed so the
+// notification and the Today tab resolve to the same affirmation.
+function hashString(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+// mulberry32
+function seededRandom(seed: number): () => number {
+  let a = seed;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function seededShuffle<T>(array: T[], seed: number): T[] {
+  const shuffled = [...array];
+  const rand = seededRandom(seed);
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+// Same inputs always yield the same affirmations, so this can be called from
+// the Today tab and from notification scheduling without them disagreeing.
+export function getDailyAffirmations(
+  dateKey: string,
+  categoryIds: string[],
+  count: number
+): Affirmation[] {
+  const scoped = getAffirmationsByCategories(categoryIds);
+  const pool = scoped.length > 0 ? scoped : AFFIRMATIONS;
+  const seed = hashString(`${dateKey}|${[...categoryIds].sort().join(',')}`);
+  return seededShuffle(pool, seed).slice(0, count);
 }
 
 export function hexWithAlpha(hex: string, alpha: number): string {

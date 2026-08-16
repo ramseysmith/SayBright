@@ -176,26 +176,6 @@ export async function getCachedPremiumStatus(): Promise<boolean> {
   return data.cachedPremiumStatus;
 }
 
-export async function getOrCreateDailyAffirmationIds(
-  pickFresh: () => string[]
-): Promise<string[]> {
-  const data = await getUserData();
-  const today = getTodayKey();
-  if (
-    data.dailyUsage.date === today &&
-    data.dailyUsage.dailyAffirmationIds.length > 0
-  ) {
-    return data.dailyUsage.dailyAffirmationIds;
-  }
-  const ids = pickFresh();
-  const usage =
-    data.dailyUsage.date === today
-      ? { ...data.dailyUsage, dailyAffirmationIds: ids }
-      : {
-          date: today,
-          todaySwipeCount: 0,
-          dailyAffirmationIds: ids,
-        };
-  await setUserData({ ...data, dailyUsage: usage });
-  return ids;
-}
+// The daily pick is derived from the date now (see getDailyAffirmations), so
+// there is nothing left to persist. The dailyAffirmationIds field stays on the
+// stored shape so existing installs keep parsing.

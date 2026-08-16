@@ -16,6 +16,7 @@ import {
 import { requestTrackingPermissionsAsync } from 'expo-tracking-transparency';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
+import { refreshScheduledReminders } from '../src/services/notifications';
 import { useURL } from 'expo-linking';
 import { COLORS } from '../src/constants/theme';
 import { getUserData, updateUserData } from '../src/services/storage';
@@ -75,6 +76,9 @@ export default function RootLayout() {
       setNeedsOnboarding(!updated.preferences.hasSeenOnboarding);
       setBootChecked(true);
       preloadInterstitial();
+      // Reminders are queued as a rolling window of dated notifications, so
+      // top the window back up each launch.
+      refreshScheduledReminders();
     })();
   }, []);
 

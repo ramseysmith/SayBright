@@ -15,7 +15,6 @@ import { CATEGORIES, AFFIRMATIONS, Category } from '../../src/data/affirmations'
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { hexWithAlpha } from '../../src/utils/affirmations';
 import { usePremium } from '../../src/context/PremiumContext';
-import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 
 export default function BrowseScreen() {
   const [query, setQuery] = useState('');
@@ -65,7 +64,6 @@ export default function BrowseScreen() {
             <Text style={styles.gateCtaText}>Unlock with Premium</Text>
           </Pressable>
         </View>
-        <BannerAdWrapper />
       </SafeAreaView>
     );
   }

@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
+import { BottomTabBar } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -41,6 +43,15 @@ function AnimatedTabIcon({
 export default function TabsLayout() {
   return (
     <Tabs
+      // One banner lives here, above the tab bar, rather than one per screen.
+      // React reconciles this subtree across tab changes so the BannerAd stays
+      // mounted and keeps showing the same ad instead of refetching.
+      tabBar={(props) => (
+        <>
+          <BannerAdWrapper />
+          <BottomTabBar {...props} />
+        </>
+      )}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: COLORS.primaryGold,

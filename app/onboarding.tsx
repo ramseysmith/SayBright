@@ -414,7 +414,7 @@ function ReminderSlide({
               />
               <Text style={styles.successText}>You're all set!</Text>
             </View>
-          ) : (
+          ) : phase === 'denied' ? null : (
             <Pressable
               onPress={handleEnable}
               disabled={phase === 'requesting'}
