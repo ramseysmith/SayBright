@@ -60,7 +60,16 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
     const offering = await getOfferings();
     const resolved = resolvePackages(offering);
     if (!resolved.monthly && !resolved.annual) {
-      setError(true);
+      // In dev the paywall still renders with the fallback prices below, so the
+      // layout can be reviewed and screenshotted without live offerings. Buying
+      // is still blocked in handlePurchase. Production shows the error state.
+      if (__DEV__) {
+        console.warn(
+          '[Paywall] No packages resolved. Rendering fallback prices because __DEV__ is set. This would show the error state in production.'
+        );
+      } else {
+        setError(true);
+      }
     } else {
       setPackages(resolved);
     }
@@ -76,7 +85,12 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
   const handlePurchase = async () => {
     const pkg = selected === 'monthly' ? packages.monthly : packages.annual;
     if (!pkg) {
-      toast.show('That plan is not available right now.');
+      // Alert, not toast: the paywall is a native modal, and the toast renders
+      // in the root tree underneath it where the user would never see it.
+      Alert.alert(
+        'Plan unavailable',
+        'That plan is not available right now. Please try again in a moment.'
+      );
       return;
     }
     if (__DEV__) {
@@ -123,7 +137,12 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
       toast.show('Purchases restored successfully.');
       router.back();
     } else {
-      toast.show('No previous purchases found.');
+      // Same reason as above: this one stays on the paywall, so it must be an
+      // Alert to be visible at all.
+      Alert.alert(
+        'Nothing to restore',
+        'We could not find a previous purchase for this Apple ID.'
+      );
     }
     setRestoring(false);
   };

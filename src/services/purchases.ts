@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Purchases, {
+  LOG_LEVEL,
   PurchasesOffering,
   PurchasesPackage,
 } from 'react-native-purchases';
@@ -7,9 +8,11 @@ import Purchases, {
 const REVENUECAT_API_KEY_IOS = 'appl_VOVMWNILkJsFKGXyPDbtCmZYBJb';
 const REVENUECAT_API_KEY_ANDROID = 'test_jsbouKJlEVoEVDxZGbdKFavGHyd';
 
+// These must match the App Store Connect product IDs exactly, and the same
+// strings must be set as the product identifiers in the RevenueCat dashboard.
 export const PRODUCT_IDS = {
   monthly: 'saybright_monthly',
-  annual: 'saybright_annual',
+  annual: 'saybright_yearly',
 };
 
 export const ENTITLEMENT_ID = 'SayBright Premium';
@@ -23,6 +26,9 @@ export async function initializePurchases(): Promise<void> {
       ? REVENUECAT_API_KEY_IOS
       : REVENUECAT_API_KEY_ANDROID;
   try {
+    // Verbose logs surface the underlying StoreKit reason when offerings come
+    // back empty, which is otherwise swallowed and looks like "no products".
+    if (__DEV__) await Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
     await Purchases.configure({ apiKey });
     configured = true;
     if (__DEV__) console.log('[Purchases] configured');
@@ -51,10 +57,32 @@ export async function getOfferings(): Promise<PurchasesOffering | null> {
   try {
     const offerings = await Purchases.getOfferings();
     if (__DEV__) {
+      // Distinguish the three ways this comes back empty: no offerings at all
+      // (dashboard/config problem), no Current offering (nothing marked
+      // Current), or a Current offering whose products StoreKit refused to
+      // return (App Store Connect problem).
+      const all = Object.keys(offerings.all);
+      console.log('[Purchases] all offering identifiers:', all);
+      console.log('[Purchases] current offering:', offerings.current?.identifier ?? null);
       console.log(
-        '[Purchases] offering packages:',
-        offerings.current?.availablePackages.map((p) => p.identifier)
+        '[Purchases] current packages:',
+        offerings.current?.availablePackages.map(
+          (p) => `${p.identifier} -> ${p.product.identifier} @ ${p.product.priceString}`
+        ) ?? []
       );
+      if (all.length === 0) {
+        console.warn(
+          '[Purchases] No offerings returned. Check the RevenueCat dashboard has an Offering with products attached, and that the bundle ID matches.'
+        );
+      } else if (!offerings.current) {
+        console.warn(
+          '[Purchases] Offerings exist but none is marked Current in the RevenueCat dashboard.'
+        );
+      } else if (offerings.current.availablePackages.length === 0) {
+        console.warn(
+          '[Purchases] Current offering has no available packages. StoreKit returned no products: check the Paid Applications Agreement is Active, the products are Ready to Submit, and that you are on a real device signed into a Sandbox account.'
+        );
+      }
     }
     return offerings.current ?? null;
   } catch (error) {
