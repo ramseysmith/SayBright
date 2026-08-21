@@ -28,7 +28,29 @@ const AD_UNITS = {
 let interstitialAd: InterstitialAd | null = null;
 let isInterstitialLoaded = false;
 
+// App Tracking Transparency has to be answered before the ad SDK collects
+// anything. On iOS nothing loads until allowAds() runs; other platforms have no
+// ATT requirement so they start open.
+let adsAllowed = Platform.OS !== 'ios';
+const adsAllowedListeners = new Set<() => void>();
+
+export function allowAds(): void {
+  if (adsAllowed) return;
+  adsAllowed = true;
+  adsAllowedListeners.forEach((listener) => listener());
+}
+
+export function getAdsAllowed(): boolean {
+  return adsAllowed;
+}
+
+export function subscribeAdsAllowed(listener: () => void): () => void {
+  adsAllowedListeners.add(listener);
+  return () => adsAllowedListeners.delete(listener);
+}
+
 export function preloadInterstitial(): void {
+  if (!adsAllowed) return;
   try {
     interstitialAd = InterstitialAd.createForAdRequest(AD_UNITS.interstitial, {
       requestNonPersonalizedAdsOnly: true,

@@ -1,5 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  AppState,
+} from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -27,7 +33,7 @@ import { initializePurchases } from '../src/services/purchases';
 import { WelcomeScreen } from '../src/components/WelcomeScreen';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import { trackEvent } from '../src/services/analytics';
-import { preloadInterstitial } from '../src/services/ads';
+import { allowAds, preloadInterstitial } from '../src/services/ads';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -55,18 +61,15 @@ export default function RootLayout() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
   const [splashFadingOut, setSplashFadingOut] = useState(false);
+  // Android has no ATT prompt, so it is answered by definition.
+  const [trackingResolved, setTrackingResolved] = useState(
+    Platform.OS !== 'ios'
+  );
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     (async () => {
-      if (Platform.OS === 'ios') {
-        try {
-          await requestTrackingPermissionsAsync();
-        } catch {
-          // ignore
-        }
-      }
       await initializePurchases();
       const updated = await updateUserData((current) => ({
         ...current,
@@ -75,12 +78,63 @@ export default function RootLayout() {
       trackEvent('app_open', { sessionCount: updated.sessionCount });
       setNeedsOnboarding(!updated.preferences.hasSeenOnboarding);
       setBootChecked(true);
-      preloadInterstitial();
       // Reminders are queued as a rolling window of dated notifications, so
       // top the window back up each launch.
       refreshScheduledReminders();
     })();
   }, []);
+
+  // iOS only presents the ATT prompt while the app is in the active state.
+  // Asking during launch, with the splash still up, makes the system drop the
+  // request silently, which is why App Review could not find the prompt. Wait
+  // until the splash is gone and the app is active, then open the ad gate only
+  // after the user has answered.
+  useEffect(() => {
+    if (trackingResolved) return;
+    if (!fontsLoaded || !bootChecked || showSplash) return;
+
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+
+    const request = async () => {
+      try {
+        await requestTrackingPermissionsAsync();
+      } catch {
+        // A refusal still counts as answered; ads stay non personalized.
+      }
+      if (cancelled) return;
+      setTrackingResolved(true);
+      allowAds();
+      preloadInterstitial();
+    };
+
+    // A short beat after the splash tears down, so the window is key before the
+    // system alert is presented.
+    const schedule = () => {
+      timer = setTimeout(request, 400);
+    };
+
+    if (AppState.currentState === 'active') {
+      schedule();
+    } else {
+      const sub = AppState.addEventListener('change', (state) => {
+        if (state === 'active') {
+          sub.remove();
+          schedule();
+        }
+      });
+      return () => {
+        cancelled = true;
+        sub.remove();
+        if (timer) clearTimeout(timer);
+      };
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [fontsLoaded, bootChecked, showSplash, trackingResolved]);
 
   useEffect(() => {
     if (fontsLoaded && bootChecked) {
