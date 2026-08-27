@@ -14,7 +14,7 @@ import { COLORS } from '../../constants/theme';
 import { usePaywallController } from '../../hooks/usePaywallController';
 import { paywallStyles as s } from './sharedStyles';
 import { PlanCard } from './PlanCard';
-import { ErrorCard, LegalSection } from './PaywallVariantA';
+import { ErrorCard, LegalSection } from './PaywallShared';
 
 const FEATURES = [
   'Unlimited daily affirmations',
@@ -147,10 +147,13 @@ export function PaywallVariantC() {
                   {c.restoring ? 'Restoring...' : 'Restore Purchases'}
                 </Text>
               </Pressable>
-
-              <LegalSection />
             </>
           )}
+
+          <LegalSection
+            monthlyPrice={c.monthlyPrice}
+            annualPrice={c.annualPrice}
+          />
         </ScrollView>
       </SafeAreaView>
     </View>

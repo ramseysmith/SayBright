@@ -142,6 +142,25 @@ export const paywallStyles = StyleSheet.create({
     color: COLORS.textSecondary,
     textDecorationLine: 'underline',
   },
+  legalWrap: {
+    marginTop: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
+    paddingBottom: SPACING.lg,
+  },
+  legalTitle: {
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
+  },
+  legalPlan: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
   legal: {
     fontFamily: FONTS.bodyRegular,
     fontSize: 11,
@@ -157,10 +176,11 @@ export const paywallStyles = StyleSheet.create({
     marginTop: SPACING.sm,
   },
   legalLink: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 11,
-    color: COLORS.textSecondary,
+    fontFamily: FONTS.bodyBold,
+    fontSize: 13,
+    color: COLORS.textPrimary,
     textDecorationLine: 'underline',
+    paddingVertical: 6,
   },
   legalDivider: {
     color: COLORS.textSecondary,

@@ -409,7 +409,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <SettingsRow
             iconName="document-text-outline"
-            title="Terms of Service"
+            title="Terms of Use (EULA)"
             onPress={() => openExternal(URLS.terms)}
           />
         </View>

@@ -4,17 +4,16 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../../constants/theme';
-import { URLS } from '../../constants/urls';
 import { usePaywallController } from '../../hooks/usePaywallController';
 import { paywallStyles as s } from './sharedStyles';
 import { PlanCard } from './PlanCard';
+import { ErrorCard, LegalSection } from './PaywallShared';
 
 const FEATURES = [
   'Unlimited daily affirmations',
@@ -119,53 +118,15 @@ export function PaywallVariantA() {
                   {c.restoring ? 'Restoring...' : 'Restore Purchases'}
                 </Text>
               </Pressable>
-
-              <LegalSection />
             </>
           )}
+
+          <LegalSection
+            monthlyPrice={c.monthlyPrice}
+            annualPrice={c.annualPrice}
+          />
         </ScrollView>
       </SafeAreaView>
     </View>
-  );
-}
-
-export function ErrorCard({ onRetry }: { onRetry: () => void }) {
-  return (
-    <View style={s.errorCard}>
-      <Text style={s.errorTitle}>Unable to load subscription options.</Text>
-      <Text style={s.errorBody}>
-        Please check your connection and try again.
-      </Text>
-      <Pressable style={s.retryBtn} onPress={onRetry}>
-        <Text style={s.retryText}>Retry</Text>
-      </Pressable>
-    </View>
-  );
-}
-
-export function LegalSection() {
-  return (
-    <>
-      <Text style={s.legal}>
-        Payment will be charged to your Apple ID account at confirmation of
-        purchase. Subscription automatically renews unless canceled at least 24
-        hours before the end of the current period.
-      </Text>
-      <View style={s.legalLinks}>
-        <Pressable
-          hitSlop={8}
-          onPress={() => Linking.openURL(URLS.terms).catch(() => {})}
-        >
-          <Text style={s.legalLink}>Terms of Service</Text>
-        </Pressable>
-        <Text style={s.legalDivider}>•</Text>
-        <Pressable
-          hitSlop={8}
-          onPress={() => Linking.openURL(URLS.privacy).catch(() => {})}
-        >
-          <Text style={s.legalLink}>Privacy Policy</Text>
-        </Pressable>
-      </View>
-    </>
   );
 }
