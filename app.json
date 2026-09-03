@@ -46,6 +46,7 @@
         "com.apple.security.application-groups": ["group.com.saybright.app"]
       },
       "infoPlist": {
+        "NSMicrophoneUsageDescription": "SayBright uses the microphone only when you tap the record button, so you can save an affirmation in your own voice and hear it back during your daily practice. For example, you can record yourself saying “I am calm and capable” and set it to play with that affirmation each morning. Recordings are stored on your device and are never uploaded.",
         "NSUserTrackingUsageDescription": "This allows SayBright to show you more relevant content and support the free version of the app.",
         "ITSAppUsesNonExemptEncryption": false
       }
