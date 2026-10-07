@@ -635,7 +635,7 @@ function PaywallCard({
   return (
     <View style={styles.paywallInner}>
       <Text style={[styles.paywallTitle, { color: textColor }]}>
-        That's today's free inspiration
+        {"That's today's free inspiration"}
       </Text>
       <Text style={[styles.paywallBody, { color: subtleTextColor }]}>
         Unlock unlimited daily affirmations with SayBright Premium.

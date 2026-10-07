@@ -389,8 +389,8 @@ function ReminderSlide({
             Never Miss Your Affirmation
           </Text>
           <Text style={styles.reminderSubtitle}>
-            Pick a time each day and we'll send you a gentle reminder with a
-            fresh affirmation.
+            {"Pick a time each day and we'll send you a gentle reminder with a " +
+              'fresh affirmation.'}
           </Text>
 
           <View style={styles.pickerCard}>
@@ -412,7 +412,7 @@ function ReminderSlide({
                 size={32}
                 color={COLORS.successGreen}
               />
-              <Text style={styles.successText}>You're all set!</Text>
+              <Text style={styles.successText}>{"You're all set!"}</Text>
             </View>
           ) : phase === 'denied' ? null : (
             <Pressable

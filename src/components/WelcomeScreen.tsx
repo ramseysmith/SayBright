@@ -199,7 +199,7 @@ export function WelcomeScreen({
               { backgroundColor: ctaBackground, borderColor: ctaBorder },
             ]}
           >
-            <Text style={styles.ctaText}>See Today's Inspiration</Text>
+            <Text style={styles.ctaText}>{"See Today's Inspiration"}</Text>
           </Pressable>
         </Animated.View>
       </SafeAreaView>
