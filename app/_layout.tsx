@@ -217,6 +217,10 @@ export default function RootLayout() {
                   options={{ headerShown: false, presentation: 'card' }}
                 />
                 <Stack.Screen
+                  name="my-affirmations"
+                  options={{ headerShown: false, presentation: 'card' }}
+                />
+                <Stack.Screen
                   name="paywall"
                   options={{
                     headerShown: false,

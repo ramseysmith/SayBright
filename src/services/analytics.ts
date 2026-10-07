@@ -22,7 +22,9 @@ export type AnalyticsEvent =
   | 'notification_enabled'
   | 'notification_disabled'
   | 'recording_created'
-  | 'recording_played';
+  | 'recording_played'
+  | 'custom_affirmation_created'
+  | 'custom_affirmation_deleted';
 
 type EventValue = string | number | boolean | null | undefined;
 

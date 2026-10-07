@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import * as Haptics from 'expo-haptics';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Affirmation } from '../../src/data/affirmations';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { getUserData, toggleFavorite } from '../../src/services/storage';
@@ -25,6 +25,21 @@ export default function FavoritesScreen() {
   const [items, setItems] = useState<Affirmation[]>([]);
   const [loaded, setLoaded] = useState(false);
   const { shareAffirmation } = useShare();
+  const router = useRouter();
+
+  const header = (
+    <View style={styles.headerRow}>
+      <Text style={styles.header}>Favorites</Text>
+      <Pressable
+        onPress={() => router.push('/my-affirmations')}
+        hitSlop={8}
+        style={styles.writeBtn}
+      >
+        <Ionicons name="create-outline" size={16} color={COLORS.primaryGold} />
+        <Text style={styles.writeText}>Write your own</Text>
+      </Pressable>
+    </View>
+  );
 
   const load = useCallback(async () => {
     const data = await getUserData();
@@ -94,6 +109,7 @@ export default function FavoritesScreen() {
   if (items.length === 0) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
+        {header}
         <View style={styles.empty}>
           <Text style={styles.emptyEmoji}>💛</Text>
           <Text style={styles.emptyTitle}>No favorites yet</Text>
@@ -107,7 +123,7 @@ export default function FavoritesScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.header}>Favorites</Text>
+      {header}
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -121,13 +137,33 @@ export default function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
   header: {
     fontFamily: FONTS.displayBold,
     fontSize: FONT_SIZES.title,
     color: COLORS.textPrimary,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
+  },
+  writeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING.sm + 4,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: COLORS.primaryGold,
+  },
+  writeText: {
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 13,
+    color: COLORS.primaryGold,
+    marginLeft: 4,
   },
   listContent: { paddingBottom: SPACING.xxl },
   row: {

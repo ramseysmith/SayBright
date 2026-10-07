@@ -1,7 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+export interface CustomAffirmation {
+  id: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface UserData {
   favorites: string[];
+  customAffirmations: CustomAffirmation[];
   streak: {
     current: number;
     longest: number;
@@ -29,6 +36,7 @@ const STORAGE_KEY = '@saybright_user_data';
 
 const DEFAULT_USER_DATA: UserData = {
   favorites: [],
+  customAffirmations: [],
   streak: {
     current: 0,
     longest: 0,
@@ -145,6 +153,47 @@ export async function toggleFavorite(affirmationId: string): Promise<string[]> {
     : [affirmationId, ...data.favorites];
   await setUserData({ ...data, favorites });
   return favorites;
+}
+
+export const CUSTOM_AFFIRMATION_MAX_LENGTH = 200;
+
+export async function addCustomAffirmation(
+  text: string
+): Promise<CustomAffirmation[]> {
+  const entry: CustomAffirmation = {
+    id: `custom-${Date.now()}`,
+    text: text.trim().slice(0, CUSTOM_AFFIRMATION_MAX_LENGTH),
+    createdAt: new Date().toISOString(),
+  };
+  const updated = await updateUserData((current) => ({
+    ...current,
+    customAffirmations: [entry, ...current.customAffirmations],
+  }));
+  return updated.customAffirmations;
+}
+
+export async function updateCustomAffirmation(
+  id: string,
+  text: string
+): Promise<CustomAffirmation[]> {
+  const trimmed = text.trim().slice(0, CUSTOM_AFFIRMATION_MAX_LENGTH);
+  const updated = await updateUserData((current) => ({
+    ...current,
+    customAffirmations: current.customAffirmations.map((a) =>
+      a.id === id ? { ...a, text: trimmed } : a
+    ),
+  }));
+  return updated.customAffirmations;
+}
+
+export async function deleteCustomAffirmation(
+  id: string
+): Promise<CustomAffirmation[]> {
+  const updated = await updateUserData((current) => ({
+    ...current,
+    customAffirmations: current.customAffirmations.filter((a) => a.id !== id),
+  }));
+  return updated.customAffirmations;
 }
 
 export async function setSelectedCategories(
