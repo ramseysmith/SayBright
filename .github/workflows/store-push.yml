@@ -1,0 +1,44 @@
+name: Store listing
+
+# Pushes store.config.json to App Store Connect whenever it changes on main, so
+# listing work merged by an agent goes live without anyone at a Mac.
+# Needs repo secrets EXPO_TOKEN (an Expo robot or personal access token) and
+# STORE_REVIEW_PHONE. EAS uses the App Store Connect API key already stored in
+# the project's EAS credentials.
+
+on:
+  push:
+    branches: [main, master]
+    paths: [store.config.json]
+  workflow_dispatch:
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Skip when the token is missing
+        id: gate
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::warning::EXPO_TOKEN is not set, so the listing was not pushed. See HQ SETUP.md."
+            echo "skip=1" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: oven-sh/setup-bun@v2
+        if: steps.gate.outputs.skip != '1' && hashFiles('bun.lock') != ''
+      - name: Install
+        if: steps.gate.outputs.skip != '1'
+        run: |
+          if [ -f bun.lock ]; then bun install --frozen-lockfile; else npm ci --ignore-scripts; fi
+      - name: Push listing
+        if: steps.gate.outputs.skip != '1'
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          STORE_REVIEW_PHONE: ${{ secrets.STORE_REVIEW_PHONE }}
+        run: npx --yes eas-cli@latest metadata:push --non-interactive
