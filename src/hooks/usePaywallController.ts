@@ -16,7 +16,8 @@ import { useToast } from '../components/Toast';
 import { trackEvent } from '../services/analytics';
 import {
   freeTrialOf,
-  isTrialEligible,
+  trialEligibility,
+  reminderLeadLabel,
   trialEndDate,
   formatRenewalDate,
   scheduleTrialEndingReminder,
@@ -60,6 +61,7 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
   const [selected, setSelected] = useState<PlanKey>('annual');
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [eligible, setEligible] = useState<Record<string, boolean>>({});
 
   const loadOfferings = useCallback(async () => {
     setLoading(true);
@@ -78,6 +80,12 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
         setError(true);
       }
     } else {
+      // Check trial eligibility for both plans before the paywall shows, so
+      // the button never flips and a fast tap still gets the reminder.
+      const ids = [resolved.monthly, resolved.annual]
+        .filter((p): p is PurchasesPackage => !!p && !!freeTrialOf(p.product))
+        .map((p) => p.product.identifier);
+      setEligible(await trialEligibility(ids));
       setPackages(resolved);
     }
     setLoading(false);
@@ -93,21 +101,7 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
   // this user can still take it (RevenueCat eligibility check).
   const selectedPkg = selected === 'monthly' ? packages.monthly : packages.annual;
   const trial = freeTrialOf(selectedPkg?.product);
-  const trialProductId = trial ? selectedPkg?.product.identifier : undefined;
-  const [trialEligible, setTrialEligible] = useState<boolean>(false);
-  useEffect(() => {
-    let active = true;
-    setTrialEligible(false);
-    if (trialProductId) {
-      isTrialEligible(trialProductId).then((ok) => {
-        if (active) setTrialEligible(ok);
-      });
-    }
-    return () => {
-      active = false;
-    };
-  }, [trialProductId]);
-  const showTrial = !!trial && trialEligible;
+  const showTrial = !!trial && !!selectedPkg && !!eligible[selectedPkg.product.identifier];
   const ctaLabel =
     showTrial && trial
       ? trial.days === 7
@@ -116,9 +110,11 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
       : 'Continue';
   const trialTerms =
     showTrial && trial && selectedPkg
-      ? `${trial.days} days free, then ${selectedPkg.product.priceString}${
+      ? `${selectedPkg.product.priceString}${
           selected === 'monthly' ? ' per month' : ' per year'
-        } from ${formatRenewalDate(trialEndDate(trial.days))}. We can remind you 2 days before it ends. Cancel anytime.`
+        } after your ${trial.days} free days, starting ${formatRenewalDate(
+          trialEndDate(trial.days)
+        )}. We can remind you ${reminderLeadLabel(trial.days)} before it ends. Cancel anytime.`
       : null;
 
   const handlePurchase = async () => {

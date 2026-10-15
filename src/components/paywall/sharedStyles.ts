@@ -136,9 +136,9 @@ export const paywallStyles = StyleSheet.create({
     color: COLORS.white,
   },
   trialTerms: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 13,
-    color: COLORS.textSecondary,
+    fontFamily: FONTS.bodyMedium,
+    fontSize: 15,
+    color: COLORS.textPrimary,
     textAlign: 'center',
     lineHeight: 18,
     marginTop: -SPACING.xs,

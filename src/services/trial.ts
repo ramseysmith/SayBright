@@ -62,6 +62,35 @@ export async function isTrialEligible(productId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Eligibility for several products in one call, so the paywall knows before
+ * it renders and a fast tap still schedules the reminder. Unknown is false.
+ */
+export async function trialEligibility(productIds: string[]): Promise<Record<string, boolean>> {
+  const out: Record<string, boolean> = {};
+  if (Platform.OS === 'web' || productIds.length === 0) return out;
+  try {
+    const result = await Purchases.checkTrialOrIntroductoryPriceEligibility(productIds);
+    for (const id of productIds) {
+      out[id] = result[id]?.status === INTRO_ELIGIBILITY_STATUS.INTRO_ELIGIBILITY_STATUS_ELIGIBLE;
+    }
+  } catch {
+    // leave everything ineligible
+  }
+  return out;
+}
+
+/** Days before the trial ends that the reminder fires. */
+export function reminderLeadDays(trialDays: number): number {
+  return trialDays > 3 ? 2 : 1;
+}
+
+/** "2 days" or "a day", matching reminderLeadDays. */
+export function reminderLeadLabel(trialDays: number): string {
+  const d = reminderLeadDays(trialDays);
+  return d === 1 ? 'a day' : `${d} days`;
+}
+
 /** The date the trial would end if it started now. */
 export function trialEndDate(days: number, from: Date = new Date()): Date {
   return new Date(from.getTime() + days * 24 * 60 * 60 * 1000);
@@ -90,7 +119,7 @@ export async function scheduleTrialEndingReminder(
     }
     if (status !== 'granted') return;
 
-    const leadDays = trial.days > 3 ? 2 : 1;
+    const leadDays = reminderLeadDays(trial.days);
     const fireAt = trialEndDate(trial.days - leadDays);
     const renewal = formatRenewalDate(trialEndDate(trial.days));
     await Notifications.scheduleNotificationAsync({
