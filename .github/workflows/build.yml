@@ -5,9 +5,15 @@ name: TestFlight build
 # Run it from the Actions tab, or: gh api -X POST
 # repos/OWNER/REPO/actions/workflows/build.yml/dispatches -f ref=main
 # HQ rule: at most one build per app per week, only after release-auditor passes.
+# When it has processed, the HQ Submit for review workflow sends it to Apple.
 # Uses the EXPO_TOKEN repo secret and the signing and App Store Connect
 # credentials already stored in EAS. The build itself runs on EAS; this job only
 # queues it and exits.
+# Build numbers: with appVersionSource "remote" in eas.json, EAS increments them.
+# With "local", the build number is exactly ios.buildNumber in app.json
+# (autoIncrement must be off, because this job's checkout is thrown away and a
+# bump here would never be saved); raise it and commit before every build, and
+# the step below refuses a number EAS has already built.
 
 on:
   workflow_dispatch:
@@ -17,8 +23,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - uses: oven-sh/setup-bun@v2
@@ -28,7 +34,19 @@ jobs:
           if [ -f bun.lock ]; then bun install --frozen-lockfile; else npm ci --ignore-scripts; fi
       - name: Checks
         run: |
-          if [ -f bun.lock ]; then bun run check; else npm run check --if-present; fi
+          run() { if [ -f bun.lock ]; then bun run "$1"; else npm run -s "$1"; fi; }
+          has() { node -e "process.exit(require('./package.json').scripts?.['$1'] ? 0 : 1)"; }
+          if has check; then run check; elif has typecheck; then run typecheck; else echo "no check or typecheck script"; fi
+      - name: Refuse a build number that was already used
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          src=$(node -p "require('./eas.json').cli?.appVersionSource || 'remote'")
+          if [ "$src" != local ]; then echo "EAS manages build numbers (appVersionSource $src)"; exit 0; fi
+          next=$(node -p "require('./app.json').expo.ios.buildNumber")
+          last=$(npx --yes eas-cli@latest build:list --platform ios --limit 10 --json --non-interactive | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s).filter(x=>x.status!=='CANCELED').map(x=>+x.appBuildVersion||0);console.log(Math.max(0,...b))})")
+          echo "app.json buildNumber $next, highest built $last"
+          if [ "$next" -le "$last" ]; then echo "::error::Raise ios.buildNumber in app.json above $last and commit first."; exit 1; fi
       - name: Queue build with auto submit
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
