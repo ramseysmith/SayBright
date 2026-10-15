@@ -1,0 +1,35 @@
+name: TestFlight build
+
+# Starts an EAS production iOS build with auto submit to TestFlight, so a shift
+# can ship without Ramsey's Mac and without the repo being linked on expo.dev.
+# Run it from the Actions tab, or: gh api -X POST
+# repos/OWNER/REPO/actions/workflows/build.yml/dispatches -f ref=main
+# HQ rule: at most one build per app per week, only after release-auditor passes.
+# Uses the EXPO_TOKEN repo secret and the signing and App Store Connect
+# credentials already stored in EAS. The build itself runs on EAS; this job only
+# queues it and exits.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        if: hashFiles('bun.lock') != ''
+      - name: Install
+        run: |
+          if [ -f bun.lock ]; then bun install --frozen-lockfile; else npm ci --ignore-scripts; fi
+      - name: Checks
+        run: |
+          if [ -f bun.lock ]; then bun run check; else npm run check --if-present; fi
+      - name: Queue build with auto submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx --yes eas-cli@latest build --platform ios --profile production --auto-submit --non-interactive --no-wait
