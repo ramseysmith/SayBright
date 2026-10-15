@@ -14,6 +14,13 @@ import { usePremium } from '../context/PremiumContext';
 import { setCachedPremiumStatus } from '../services/storage';
 import { useToast } from '../components/Toast';
 import { trackEvent } from '../services/analytics';
+import {
+  freeTrialOf,
+  isTrialEligible,
+  trialEndDate,
+  formatRenewalDate,
+  scheduleTrialEndingReminder,
+} from '../services/trial';
 
 export type PlanKey = 'monthly' | 'annual';
 
@@ -82,6 +89,38 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
 
   const close = () => router.back();
 
+  // Free trial: only sold when the selected product has one and Apple says
+  // this user can still take it (RevenueCat eligibility check).
+  const selectedPkg = selected === 'monthly' ? packages.monthly : packages.annual;
+  const trial = freeTrialOf(selectedPkg?.product);
+  const trialProductId = trial ? selectedPkg?.product.identifier : undefined;
+  const [trialEligible, setTrialEligible] = useState<boolean>(false);
+  useEffect(() => {
+    let active = true;
+    setTrialEligible(false);
+    if (trialProductId) {
+      isTrialEligible(trialProductId).then((ok) => {
+        if (active) setTrialEligible(ok);
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, [trialProductId]);
+  const showTrial = !!trial && trialEligible;
+  const ctaLabel =
+    showTrial && trial
+      ? trial.days === 7
+        ? 'Start my free week'
+        : `Start my ${trial.days} day free trial`
+      : 'Continue';
+  const trialTerms =
+    showTrial && trial && selectedPkg
+      ? `${trial.days} days free, then ${selectedPkg.product.priceString}${
+          selected === 'monthly' ? ' per month' : ' per year'
+        } from ${formatRenewalDate(trialEndDate(trial.days))}. We can remind you 2 days before it ends. Cancel anytime.`
+      : null;
+
   const handlePurchase = async () => {
     const pkg = selected === 'monthly' ? packages.monthly : packages.annual;
     if (!pkg) {
@@ -109,7 +148,10 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
       if (ok) {
         setPremiumOptimistic(true);
         await setCachedPremiumStatus(true).catch(() => {});
-        trackEvent('purchase_completed', { variant, plan: selected });
+        trackEvent('purchase_completed', { variant, plan: selected, trial: showTrial });
+        if (showTrial && trial) {
+          await scheduleTrialEndingReminder(trial, pkg.product.priceString, 'SayBright');
+        }
         refreshPremiumStatus().catch(() => {});
         toast.show('Welcome to SayBright Premium.');
         router.back();
@@ -160,6 +202,9 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
     restoring,
     monthlyPrice,
     annualPrice,
+    showTrial,
+    ctaLabel,
+    trialTerms,
     handlePurchase,
     handleRestore,
     loadOfferings,

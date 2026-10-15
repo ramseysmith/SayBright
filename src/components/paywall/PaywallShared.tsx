@@ -19,6 +19,8 @@ export function ErrorCard({ onRetry }: { onRetry: () => void }) {
 interface LegalSectionProps {
   monthlyPrice: string;
   annualPrice: string;
+  /** True when the selected plan starts with a free trial this user can take */
+  showTrial?: boolean;
 }
 
 /**
@@ -29,7 +31,7 @@ interface LegalSectionProps {
  * reviewer still has to see all four things, and rendering it only on the
  * success path is what got build 10 rejected.
  */
-export function LegalSection({ monthlyPrice, annualPrice }: LegalSectionProps) {
+export function LegalSection({ monthlyPrice, annualPrice, showTrial }: LegalSectionProps) {
   return (
     <View style={s.legalWrap}>
       <Text style={s.legalTitle}>SayBright Premium</Text>
@@ -40,6 +42,14 @@ export function LegalSection({ monthlyPrice, annualPrice }: LegalSectionProps) {
       <Text style={s.legalPlan}>
         Annual: {annualPrice} per year, billed every 12 months.
       </Text>
+
+      {showTrial ? (
+        <Text style={s.legal}>
+          The free trial is for eligible new subscribers. If you do not cancel at
+          least 24 hours before it ends, the subscription starts and your Apple ID
+          is charged the plan price.
+        </Text>
+      ) : null}
 
       <Text style={s.legal}>
         Payment is charged to your Apple ID account at confirmation of purchase.

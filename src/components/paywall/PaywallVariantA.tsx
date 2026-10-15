@@ -105,9 +105,13 @@ export function PaywallVariantA() {
                 {c.purchasing ? (
                   <ActivityIndicator color={COLORS.white} />
                 ) : (
-                  <Text style={s.ctaText}>Continue</Text>
+                  <Text style={s.ctaText}>{c.ctaLabel}</Text>
                 )}
               </Pressable>
+
+              {c.trialTerms ? (
+                <Text style={s.trialTerms}>{c.trialTerms}</Text>
+              ) : null}
 
               <Pressable
                 onPress={c.handleRestore}
@@ -124,6 +128,7 @@ export function PaywallVariantA() {
           <LegalSection
             monthlyPrice={c.monthlyPrice}
             annualPrice={c.annualPrice}
+            showTrial={c.showTrial}
           />
         </ScrollView>
       </SafeAreaView>

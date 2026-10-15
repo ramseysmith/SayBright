@@ -7,4 +7,12 @@ module.exports = defineConfig([
   {
     ignores: ['dist/*', 'ios/*', 'android/*', 'targets/*'],
   },
+  {
+    // store.config.js runs in Node under CommonJS for EAS Metadata.
+    files: ['store.config.js'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: { __dirname: 'readonly', require: 'readonly', module: 'writable', process: 'readonly' },
+    },
+  },
 ]);

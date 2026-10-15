@@ -77,7 +77,7 @@ export function ShareProvider({ children }: { children: ReactNode }) {
         setPending(null);
       }
     },
-    [toast]
+    [toast, isPremium]
   );
 
   return (

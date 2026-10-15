@@ -75,7 +75,7 @@ export function PaywallVariantC() {
             <Text style={s.heroEmoji}>✨</Text>
             <Text style={s.heroTitle}>Launch Special</Text>
             <Text style={s.heroSubtitle}>
-              Lock in introductory pricing on the annual plan.
+              Try every category free for a week.
             </Text>
             <View style={s.countdownBar}>
               <Text style={s.countdownText}>

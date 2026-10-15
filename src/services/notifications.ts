@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { cancelAllExceptTrialReminder } from './trial';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { getDailyAffirmations, getDateKey } from '../utils/affirmations';
@@ -122,7 +123,7 @@ export async function refreshScheduledReminders(): Promise<void> {
 
 export async function cancelAllReminders(): Promise<void> {
   try {
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    await cancelAllExceptTrialReminder();
   } catch {
     // ignore
   }

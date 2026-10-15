@@ -135,6 +135,15 @@ export const paywallStyles = StyleSheet.create({
     fontSize: 18,
     color: COLORS.white,
   },
+  trialTerms: {
+    fontFamily: FONTS.bodyRegular,
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
+    marginTop: -SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
   restoreBtn: { alignItems: 'center', paddingVertical: SPACING.sm },
   restoreText: {
     fontFamily: FONTS.bodyRegular,
