@@ -187,7 +187,7 @@ export default function SettingsScreen() {
         toast.show('Could not open subscription settings.');
       });
     } else {
-      router.push('/paywall');
+      router.push('/paywall?source=settings');
     }
   };
 
@@ -223,7 +223,7 @@ export default function SettingsScreen() {
 
   const onWidgetsPress = () => {
     if (!isPremium) {
-      router.push('/paywall');
+      router.push('/paywall?source=widgets');
       return;
     }
     Alert.alert(
@@ -235,7 +235,7 @@ export default function SettingsScreen() {
 
   const onRecordingsPress = () => {
     if (!isPremium) {
-      router.push('/paywall');
+      router.push('/paywall?source=recordings');
       return;
     }
     setRecordingsModalOpen(true);
@@ -467,7 +467,7 @@ export default function SettingsScreen() {
               isPremium={isPremium}
               onLockedTap={() => {
                 setPickerOpen(false);
-                router.push('/paywall');
+                router.push('/paywall?source=category_picker');
               }}
             />
           </ScrollView>

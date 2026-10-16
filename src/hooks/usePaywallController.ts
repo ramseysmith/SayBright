@@ -169,6 +169,7 @@ export function usePaywallController(variant: 'A' | 'B' | 'C') {
     setRestoring(true);
     const ok = await restorePurchases();
     if (ok) {
+      trackEvent('purchase_restored');
       setPremiumOptimistic(true);
       await setCachedPremiumStatus(true).catch(() => {});
       refreshPremiumStatus().catch(() => {});

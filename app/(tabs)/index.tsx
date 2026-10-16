@@ -317,7 +317,7 @@ export default function TodayScreen() {
   const onMicPress = async () => {
     if (!current) return;
     if (!isPremium) {
-      router.push('/paywall');
+      router.push('/paywall?source=record_voice');
       return;
     }
     if (hasOwnRecording) {
@@ -445,7 +445,7 @@ export default function TodayScreen() {
       <SafeAreaView edges={['top']} style={styles.safe}>
         <View style={styles.header}>
           {!isPremium ? (
-            <GoPremiumPill onPress={() => router.push('/paywall')} />
+            <GoPremiumPill onPress={() => router.push('/paywall?source=home_pill')} />
           ) : (
             <View />
           )}
@@ -473,7 +473,7 @@ export default function TodayScreen() {
                   <PaywallCard
                     textColor={textColor}
                     subtleTextColor={subtleTextColor}
-                    onSeePlans={() => router.push('/paywall')}
+                    onSeePlans={() => router.push('/paywall?source=daily_limit')}
                   />
                 ) : current ? (
                   <>

@@ -168,7 +168,7 @@ export default function OnboardingScreen() {
               <FocusSlide
                 selected={selected}
                 onChange={setSelected}
-                onPremiumTap={() => router.push('/paywall')}
+                onPremiumTap={() => router.push('/paywall?source=onboarding')}
               />
             );
           }

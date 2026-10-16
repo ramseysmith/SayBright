@@ -58,7 +58,7 @@ export default function BrowseScreen() {
             Browse 340+ affirmations across 10 categories with SayBright Premium.
           </Text>
           <Pressable
-            onPress={() => router.push('/paywall')}
+            onPress={() => router.push('/paywall?source=browse_gate')}
             style={styles.gateCta}
           >
             <Text style={styles.gateCtaText}>Unlock with Premium</Text>
