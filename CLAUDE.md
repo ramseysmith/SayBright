@@ -75,7 +75,10 @@ ramseysmith/graysmith_labs_agent (PLAN.md, CLAUDE.md, data/latest.json).
   pull workflow once. Merging a listing change to the default branch publishes it
   through store-push.yml.
 * Subagents in .claude/agents: aso-copywriter, release-auditor, ux-reviewer,
-  screenshot-producer, monetization-engineer, growth-analyst. Run release-auditor
+  screenshot-producer, monetization-engineer, growth-analyst, illustrator. Run release-auditor
   before any build meant for review.
+* The subagents, the guard hook, its settings and this section are synced from HQ
+  (listed in .claude/synced.json). Change them in HQ templates/app and run
+  `node scripts/claude_assets.mjs sync` there, or the next sync overwrites the edit.
 * Agents merge their own reviewed work. Prices, trials, products, spend and
   account settings are Ramsey's; write him exact steps instead.

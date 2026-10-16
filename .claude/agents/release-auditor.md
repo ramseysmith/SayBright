@@ -30,6 +30,11 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 13. Review notes say no login is needed and give exact taps to reach the paywall.
 14. No hyphens, en dashes or em dashes in user facing copy, store copy or release notes (code and URLs exempt).
 
+## Design and screenshots
+14b. Every path under store.config.json screenshots exists and has the slot's size (APP_IPHONE_67 1320 x 2868, APP_IPAD_PRO_3GEN_129 2064 x 2752). When app.json has supportsTablet true, an iPad set is listed.
+14c. No placeholder strings users can see: grep src for "Loading ad", "Ad unavailable", "lorem", "TODO" in JSX text.
+14d. The paywall privacy link points at graysmithlabs.com/apps/<app>-privacy.html and that page names AdMob, RevenueCat and any analytics in use.
+
 ## Product quality
 15. Every screen has an empty state, a loading state and an error state.
 16. The review prompt fires only at a success moment and is rate limited.

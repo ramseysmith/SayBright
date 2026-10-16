@@ -1,0 +1,15 @@
+{
+  "note": "Synced from ramseysmith/graysmith_labs_agent by scripts/claude_assets.mjs. Change these files in HQ and run the sync; edits made here are overwritten.",
+  "files": {
+    ".claude/agents/aso-copywriter.md": "templates/app/.claude/agents/aso-copywriter.md",
+    ".claude/agents/growth-analyst.md": "templates/app/.claude/agents/growth-analyst.md",
+    ".claude/agents/illustrator.md": "templates/app/.claude/agents/illustrator.md",
+    ".claude/agents/monetization-engineer.md": "templates/app/.claude/agents/monetization-engineer.md",
+    ".claude/agents/release-auditor.md": "templates/app/.claude/agents/release-auditor.md",
+    ".claude/agents/screenshot-producer.md": "templates/app/.claude/agents/screenshot-producer.md",
+    ".claude/agents/ux-reviewer.md": "templates/app/.claude/agents/ux-reviewer.md",
+    ".claude/hooks/guard.mjs": "templates/app/.claude/hooks/guard.mjs",
+    ".claude/settings.json#hooks": "templates/app/.claude/settings.json",
+    "CLAUDE.md#Graysmith Labs HQ": "templates/app/CLAUDE.hq.md"
+  }
+}

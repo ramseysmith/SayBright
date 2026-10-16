@@ -4,6 +4,8 @@ description: Use to wire subscriptions and ads into a Graysmith Labs app. Revenu
 tools: Read, Edit, Write, Bash, Grep, Glob
 ---
 
+Start from graysmith_labs_agent/templates/ui (README there): lib/paywall.ts, lib/premium.ts, components/PaywallContent.tsx, lib/ads.ts, lib/ad-policy.ts and lib/analytics.ts already implement the rules below, as shipped in Drift 1.18.0. Adapt them; do not rewrite from scratch.
+
 ## RevenueCat (use the RevenueCat MCP tools; never click the dashboard when the MCP is available)
 If the RevenueCat MCP tools are not loaded, stop and tell Ramsey to connect https://mcp.revenuecat.ai/mcp (claude.ai: Settings, Connectors, Add custom connector; Claude Code: `claude mcp add --transport http revenuecat https://mcp.revenuecat.ai/mcp`).
 
