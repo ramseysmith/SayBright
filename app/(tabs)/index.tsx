@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  Dimensions,
+  ActionSheetIOS,
   ActivityIndicator,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,51 +17,43 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
-  withRepeat,
   withSequence,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import { Audio } from 'expo-av';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
-import {
-  getUserData,
-  incrementSwipeCount,
-  toggleFavorite,
-} from '../../src/services/storage';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
+import { getUserData, incrementSwipeCount, toggleFavorite } from '../../src/services/storage';
+import { FONTS } from '../../src/constants/theme';
+import { C, MAX_CONTENT_WIDTH, RADIUS, SKIES, dayPeriod } from '../../src/theme/colors';
 import {
   getAffirmationsByCategories,
   getDailyAffirmations,
+  getDisplayInfo,
   getTodayKey,
   shuffle,
 } from '../../src/utils/affirmations';
-import { getTimeOfDay } from '../../src/utils/time';
+import { greetingFor } from '../../src/utils/time';
 import { usePremium } from '../../src/context/PremiumContext';
-import { preloadInterstitial, showInterstitial } from '../../src/services/ads';
+import { maybeShowInterstitial, preloadInterstitial } from '../../src/services/ads';
+import { recordCoreActionFinished } from '../../src/lib/ad-policy';
+import { FREE_DAILY_LIMIT } from '../../src/lib/free-tier';
 import { checkInToday } from '../../src/services/streak';
 import { maybeRequestReview } from '../../src/services/review';
 import { MilestoneCelebration } from '../../src/components/MilestoneCelebration';
 import { StreakCalendar } from '../../src/components/StreakCalendar';
 import { useShare } from '../../src/context/ShareContext';
+import { useToast } from '../../src/components/Toast';
 import { updateWidgetData } from '../../src/services/widgetData';
 import { trackEvent } from '../../src/services/analytics';
-import { getDisplayInfo } from '../../src/utils/affirmations';
-import {
-  deleteRecording,
-  getRecordingUri,
-  hasRecording,
-  playRecording,
-} from '../../src/services/audio';
+import { deleteRecording, getRecordingUri, hasRecording, playRecording } from '../../src/services/audio';
 import { RecordingModal } from '../../src/components/RecordingModal';
-import { Audio } from 'expo-av';
-import { Alert } from 'react-native';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const FREE_DAILY_LIMIT = 1;
-const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.22;
+import Tap from '../../src/components/Tap';
+import SunriseHero from '../../src/components/art/SunriseHero';
+import CategoryIcon from '../../src/components/art/CategoryIcon';
+import BrightMark from '../../src/components/art/BrightMark';
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
@@ -76,14 +68,17 @@ export default function TodayScreen() {
   const playbackRef = useRef<Audio.Sound | null>(null);
   const { isPremium } = usePremium();
   const router = useRouter();
+  const toast = useToast();
   const { shareAffirmation } = useShare();
 
-  const { period, gradient } = useMemo(() => getTimeOfDay(), []);
-  const textColor = gradient.textColor;
-  const subtleTextColor =
-    gradient.statusBar === 'light'
-      ? 'rgba(255, 255, 255, 0.85)'
-      : 'rgba(26, 26, 46, 0.7)';
+  const period = useMemo(() => dayPeriod(), []);
+  const sky = SKIES[period];
+  const textColor = sky.ink;
+  const subtleTextColor = sky.inkSecondary;
+  const { width: winWidth } = useWindowDimensions();
+  const contentWidth = Math.min(winWidth, MAX_CONTENT_WIDTH);
+  const swipeThreshold = contentWidth * 0.22;
+  const finishedRecorded = useRef(false);
 
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -93,27 +88,6 @@ export default function TodayScreen() {
   const streakBadgeStyle = useAnimatedStyle(() => ({
     transform: [{ scale: streakBadgeScale.value }],
   }));
-  const flameScale = useSharedValue(1);
-  const flameStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: flameScale.value }],
-  }));
-
-  useEffect(() => {
-    flameScale.value = withRepeat(
-      withSequence(
-        withTiming(1.15, {
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-        }),
-        withTiming(1, {
-          duration: 1000,
-          easing: Easing.inOut(Easing.ease),
-        })
-      ),
-      -1,
-      false
-    );
-  }, [flameScale]);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }, { scale: scale.value }],
@@ -130,8 +104,8 @@ export default function TodayScreen() {
         baseCandidates.length > 0 ? baseCandidates : AFFIRMATIONS
       );
 
-      // Free users get one affirmation a day, picked deterministically from the
-      // date so it matches the one their reminder notification carries.
+      // Free users get five affirmations a day (1.3.0), picked from the date so
+      // the first one matches the one their reminder notification carries.
       const resolvedPool: Affirmation[] = isPremium
         ? fullShuffled
         : getDailyAffirmations(getTodayKey(), selected, FREE_DAILY_LIMIT);
@@ -179,6 +153,7 @@ export default function TodayScreen() {
     }
   }, [isPremium]);
 
+
   const lightHaptic = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
   };
@@ -215,8 +190,8 @@ export default function TodayScreen() {
 
   const runTransition = (direction: 'forward' | 'backward') => {
     'worklet';
-    const exitTo = direction === 'forward' ? -SCREEN_WIDTH : SCREEN_WIDTH;
-    const enterFrom = direction === 'forward' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+    const exitTo = direction === 'forward' ? -contentWidth : contentWidth;
+    const enterFrom = direction === 'forward' ? contentWidth : -contentWidth;
     translateX.value = withTiming(
       exitTo,
       { duration: 180, easing: Easing.in(Easing.quad) },
@@ -251,14 +226,14 @@ export default function TodayScreen() {
     .activeOffsetX([-12, 12])
     .onUpdate((e) => {
       translateX.value = e.translationX;
-      const dist = Math.min(Math.abs(e.translationX) / SCREEN_WIDTH, 0.4);
+      const dist = Math.min(Math.abs(e.translationX) / contentWidth, 0.4);
       opacity.value = 1 - dist;
     })
     .onEnd((e) => {
       opacity.value = withTiming(1, { duration: 150 });
-      if (e.translationX < -SWIPE_THRESHOLD) {
+      if (e.translationX < -swipeThreshold) {
         runOnJS(startTransition)('forward');
-      } else if (e.translationX > SWIPE_THRESHOLD) {
+      } else if (e.translationX > swipeThreshold) {
         runOnJS(startTransition)('backward');
       } else {
         translateX.value = withSpring(0, { damping: 18 });
@@ -334,7 +309,7 @@ export default function TodayScreen() {
           }
         });
       } catch {
-        Alert.alert('Playback failed', 'Please try again.');
+        toast.show('Playback failed. Please try again.');
       }
     } else {
       setRecordingModalOpen(true);
@@ -343,42 +318,31 @@ export default function TodayScreen() {
 
   const onMicLongPress = () => {
     if (!current || !isPremium || !hasOwnRecording) return;
-    Alert.alert(
-      'Recording options',
-      undefined,
-      [
-        {
-          text: 'Play',
-          onPress: () => onMicPress(),
-        },
-        {
-          text: 'Re record',
-          onPress: async () => {
-            await stopPlayback();
-            await deleteRecording(current.id);
-            setRecordedIds((prev) => {
-              const next = new Set(prev);
-              next.delete(current.id);
-              return next;
-            });
-            setRecordingModalOpen(true);
-          },
-        },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await stopPlayback();
-            await deleteRecording(current.id);
-            setRecordedIds((prev) => {
-              const next = new Set(prev);
-              next.delete(current.id);
-              return next;
-            });
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
+    const target = current;
+    const clearRecording = async () => {
+      await stopPlayback();
+      await deleteRecording(target.id);
+      setRecordedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(target.id);
+        return next;
+      });
+    };
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: 'Your recording',
+        options: ['Play', 'Record again', 'Delete', 'Cancel'],
+        destructiveButtonIndex: 2,
+        cancelButtonIndex: 3,
+      },
+      async (index) => {
+        if (index === 0) onMicPress();
+        if (index === 1) {
+          await clearRecording();
+          setRecordingModalOpen(true);
+        }
+        if (index === 2) await clearRecording();
+      }
     );
   };
 
@@ -409,6 +373,20 @@ export default function TodayScreen() {
 
   const isPaywallCard = !isPremium && pool.length > 0 && currentIndex >= pool.length;
 
+  // Finishing the day's five is the success moment. A full screen ad may
+  // follow it only from the second finished set on, at most once a session
+  // (src/lib/ad-policy.ts); the end card then offers Premium.
+  useEffect(() => {
+    if (!isPaywallCard || finishedRecorded.current) return;
+    finishedRecorded.current = true;
+    trackEvent('daily_set_finished', { kind: 'free' });
+    (async () => {
+      await new Promise((r) => setTimeout(r, 700));
+      await maybeShowInterstitial(false);
+      await recordCoreActionFinished();
+    })();
+  }, [isPaywallCard]);
+
   const onToggleFavorite = async () => {
     if (!current || isPaywallCard) return;
     mediumHaptic();
@@ -416,149 +394,129 @@ export default function TodayScreen() {
       withSpring(1.3, { damping: 8, stiffness: 200 }),
       withSpring(1, { damping: 12, stiffness: 200 })
     );
-    const wasFavorited = favorites.includes(current.id);
     const updated = await toggleFavorite(current.id);
     setFavorites(updated);
     trackEvent('affirmation_favorited', {
       affirmationId: current.id,
       totalFavorites: updated.length,
     });
-    if (!wasFavorited && !isPremium) {
-      showInterstitial();
-    }
   };
 
-  const indicatorText =
-    pool.length > 0 && !isPaywallCard
-      ? `${Math.min(currentIndex + 1, pool.length)} of ${pool.length}`
-      : '';
+
+  const onSky = sky.statusBar === 'light';
+  const cardStyleStatic = onSky ? styles.cardNight : styles.cardDay;
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const remaining = Math.max(0, pool.length - currentIndex);
 
   return (
     <View style={styles.root}>
-      <StatusBar style={gradient.statusBar} />
-      <LinearGradient
-        colors={gradient.colors}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.6, y: 1 }}
-      />
+      <StatusBar style={sky.statusBar} />
+      <LinearGradient colors={sky.colors} style={StyleSheet.absoluteFill} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1 }} />
       <SafeAreaView edges={['top']} style={styles.safe}>
-        <View style={styles.header}>
-          {!isPremium ? (
-            <GoPremiumPill onPress={() => router.push('/paywall?source=home_pill')} />
-          ) : (
-            <View />
-          )}
-          <Pressable onPress={() => setCalendarOpen(true)} hitSlop={6}>
-            <Animated.View style={[styles.streakBadge, streakBadgeStyle]}>
-              <Animated.Text
-                style={[styles.streakText, styles.flameEmoji, { color: textColor }, flameStyle]}
-              >
-                🔥
-              </Animated.Text>
-              <Text style={[styles.streakText, { color: textColor }]}>
-                {streakCount}
-              </Text>
-            </Animated.View>
-          </Pressable>
-        </View>
-
-        <View style={styles.cardWrapper}>
-          {loading ? (
-            <ActivityIndicator color={textColor} />
-          ) : (
-            <GestureDetector gesture={pan}>
-              <Animated.View style={[styles.card, cardStyle]}>
-                {isPaywallCard ? (
-                  <PaywallCard
-                    textColor={textColor}
-                    subtleTextColor={subtleTextColor}
-                    onSeePlans={() => router.push('/paywall?source=daily_limit')}
-                  />
-                ) : current ? (
-                  <>
-                    {category ? (
-                      <View style={styles.categoryRow}>
-                        <Text style={styles.categoryEmoji}>{category.icon}</Text>
-                        <Text
-                          style={[styles.categoryName, { color: subtleTextColor }]}
-                        >
-                          {category.name}
-                        </Text>
-                      </View>
-                    ) : null}
-                    <Text style={[styles.affirmation, { color: textColor }]}>
-                      {current.text}
-                    </Text>
-                    <View style={styles.actionsRow}>
-                      <Pressable hitSlop={12} onPress={onToggleFavorite}>
-                        <Animated.View style={heartStyle}>
-                          <Ionicons
-                            name={isFavorited ? 'heart' : 'heart-outline'}
-                            size={26}
-                            color={isFavorited ? COLORS.warmCoral : textColor}
-                          />
-                        </Animated.View>
-                      </Pressable>
-                      <Pressable
-                        hitSlop={12}
-                        onPress={onMicPress}
-                        onLongPress={onMicLongPress}
-                      >
-                        <View style={{ position: 'relative' }}>
-                          <Ionicons
-                            name={hasOwnRecording ? 'mic' : 'mic-outline'}
-                            size={26}
-                            color={
-                              hasOwnRecording ? COLORS.primaryGold : textColor
-                            }
-                          />
-                          {!isPremium ? (
-                            <View style={styles.micLockBadge}>
-                              <Ionicons
-                                name="lock-closed"
-                                size={10}
-                                color={COLORS.white}
-                              />
-                            </View>
-                          ) : null}
-                        </View>
-                      </Pressable>
-                      <Pressable
-                        hitSlop={12}
-                        onPress={() => current && shareAffirmation(current)}
-                      >
-                        <Ionicons
-                          name="share-outline"
-                          size={26}
-                          color={textColor}
-                        />
-                      </Pressable>
-                    </View>
-                  </>
-                ) : null}
+        <View style={[styles.column, { width: contentWidth }]}>
+          <View style={styles.header}>
+            <View style={styles.headerText}>
+              <Text style={[styles.greeting, { color: textColor }]}>{greetingFor(period)}</Text>
+              <Text style={[styles.date, { color: subtleTextColor }]}>{dateLabel}</Text>
+            </View>
+            <Tap
+              onPress={() => setCalendarOpen(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={`${streakCount} day streak, open calendar`}
+            >
+              <Animated.View style={[styles.streakChip, onSky ? styles.chipNight : styles.chipDay, streakBadgeStyle]}>
+                <Ionicons name="flame" size={16} color={C.goldDeep} />
+                <Text style={[styles.streakText, { color: textColor }]}>{streakCount}</Text>
               </Animated.View>
-            </GestureDetector>
-          )}
+            </Tap>
+          </View>
 
-          {indicatorText ? (
-            <Text style={[styles.indicator, { color: subtleTextColor }]}>
-              {indicatorText}
-            </Text>
-          ) : null}
+          <View style={[styles.hero, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
+            <SunriseHero width={winWidth} period={period} height={Math.min(170, winWidth * 0.4)} />
+          </View>
+
+          <View style={styles.cardWrapper}>
+            {loading ? (
+              <ActivityIndicator color={textColor} />
+            ) : (
+              <GestureDetector gesture={pan}>
+                <Animated.View style={[styles.card, cardStyleStatic, cardStyle]}>
+                  {isPaywallCard ? (
+                    <EndOfDayCard
+                      textColor={textColor}
+                      subtleTextColor={subtleTextColor}
+                      onSeePlans={() => router.push('/paywall?source=daily_limit')}
+                    />
+                  ) : current ? (
+                    <>
+                      {category ? (
+                        <View style={styles.categoryRow}>
+                          <CategoryIcon name={current.categoryId} size={18} color={subtleTextColor} />
+                          <Text style={[styles.categoryName, { color: subtleTextColor }]}>{category.name}</Text>
+                        </View>
+                      ) : null}
+                      <Text
+                        style={[styles.affirmation, { color: textColor }]}
+                        adjustsFontSizeToFit
+                        minimumFontScale={0.8}
+                        numberOfLines={6}
+                      >
+                        {current.text}
+                      </Text>
+                      <View style={styles.actionsRow}>
+                        <Tap hitSlop={12} onPress={onToggleFavorite} accessibilityRole="button" accessibilityLabel={isFavorited ? 'Remove from favorites' : 'Save to favorites'}>
+                          <Animated.View style={heartStyle}>
+                            <Ionicons name={isFavorited ? 'heart' : 'heart-outline'} size={26} color={isFavorited ? C.heart : textColor} />
+                          </Animated.View>
+                        </Tap>
+                        <Tap
+                          hitSlop={12}
+                          onPress={onMicPress}
+                          onLongPress={onMicLongPress}
+                          accessibilityRole="button"
+                          accessibilityLabel={hasOwnRecording ? 'Play your recording' : 'Record in your voice'}
+                        >
+                          <View>
+                            <Ionicons name={hasOwnRecording ? 'mic' : 'mic-outline'} size={26} color={hasOwnRecording ? C.goldDeep : textColor} />
+                            {!isPremium ? (
+                              <View style={styles.micLockBadge}>
+                                <Ionicons name="lock-closed" size={9} color={C.onGold} />
+                              </View>
+                            ) : null}
+                          </View>
+                        </Tap>
+                        <Tap hitSlop={12} onPress={() => current && shareAffirmation(current)} accessibilityRole="button" accessibilityLabel="Share">
+                          <Ionicons name="share-outline" size={26} color={textColor} />
+                        </Tap>
+                      </View>
+                    </>
+                  ) : null}
+                </Animated.View>
+              </GestureDetector>
+            )}
+
+            {!loading && !isPremium && pool.length > 0 ? (
+              <View style={styles.progressRow} accessibilityLabel={`${Math.min(currentIndex + 1, pool.length)} of ${pool.length} today`}>
+                {pool.map((a, i) => (
+                  <View
+                    key={a.id}
+                    style={[styles.progressDot, { backgroundColor: i <= currentIndex ? textColor : subtleTextColor }, i <= currentIndex ? null : styles.progressDotOff]}
+                  />
+                ))}
+                <Text style={[styles.progressText, { color: subtleTextColor }]}>
+                  {isPaywallCard ? 'All five said' : remaining <= 1 ? 'Last one today' : `${remaining - 1} more today`}
+                </Text>
+              </View>
+            ) : !loading && isPremium ? (
+              <Text style={[styles.progressText, styles.swipeHint, { color: subtleTextColor }]}>Swipe for the next one</Text>
+            ) : null}
+          </View>
         </View>
-
       </SafeAreaView>
 
-      <MilestoneCelebration
-        visible={milestone !== null}
-        milestone={milestone}
-        onClose={() => setMilestone(null)}
-      />
-      <StreakCalendar
-        visible={calendarOpen}
-        onClose={() => setCalendarOpen(false)}
-      />
+      <MilestoneCelebration visible={milestone !== null} milestone={milestone} onClose={() => setMilestone(null)} />
+      <StreakCalendar visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
       <RecordingModal
         visible={recordingModalOpen}
         affirmationId={current?.id ?? null}
@@ -575,219 +533,81 @@ export default function TodayScreen() {
   );
 }
 
-function GoPremiumPill({ onPress }: { onPress: () => void }) {
-  const shimmerX = useSharedValue(-80);
-
-  useEffect(() => {
-    shimmerX.value = withRepeat(
-      withSequence(
-        withDelay(
-          3000,
-          withTiming(120, {
-            duration: 800,
-            easing: Easing.inOut(Easing.ease),
-          })
-        ),
-        withTiming(-80, { duration: 0 })
-      ),
-      -1,
-      false
-    );
-  }, [shimmerX]);
-
-  const shimmerStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shimmerX.value }, { rotate: '20deg' }],
-  }));
-
+/** Closes the free daily set: the Premium entry is part of the layout. */
+function EndOfDayCard({ textColor, subtleTextColor, onSeePlans }: { textColor: string; subtleTextColor: string; onSeePlans: () => void }) {
   return (
-    <Pressable onPress={onPress} hitSlop={6}>
-      <View style={styles.goPremiumPill}>
-        <Text style={styles.goPremiumText}>✨ Go Premium</Text>
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.shimmerWrap, shimmerStyle]}
-        >
-          <LinearGradient
-            colors={[
-              'rgba(255, 255, 255, 0)',
-              'rgba(255, 255, 255, 0.45)',
-              'rgba(255, 255, 255, 0)',
-            ]}
-            start={{ x: 0, y: 0.5 }}
-            end={{ x: 1, y: 0.5 }}
-            style={styles.shimmerGradient}
-          />
-        </Animated.View>
-      </View>
-    </Pressable>
-  );
-}
-
-function PaywallCard({
-  textColor,
-  subtleTextColor,
-  onSeePlans,
-}: {
-  textColor: string;
-  subtleTextColor: string;
-  onSeePlans: () => void;
-}) {
-  return (
-    <View style={styles.paywallInner}>
-      <Text style={[styles.paywallTitle, { color: textColor }]}>
-        {"That's today's free inspiration"}
+    <View style={styles.endInner}>
+      <BrightMark size={84} />
+      <Text style={[styles.endTitle, { color: textColor }]}>{"That's your five for today"}</Text>
+      <Text style={[styles.endBody, { color: subtleTextColor }]}>
+        Five new ones arrive tomorrow. Or keep going now with every category and no limit.
       </Text>
-      <Text style={[styles.paywallBody, { color: subtleTextColor }]}>
-        Unlock unlimited daily affirmations with SayBright Premium.
-      </Text>
-      <Pressable
-        onPress={onSeePlans}
-        style={[styles.paywallCta, { borderColor: textColor }]}
-      >
-        <Text style={[styles.paywallCtaText, { color: textColor }]}>
-          See Plans
-        </Text>
-      </Pressable>
-      <Text style={[styles.paywallFooter, { color: subtleTextColor }]}>
-        Come back tomorrow for 3 more
-      </Text>
+      <Tap onPress={onSeePlans} style={styles.endCta} pressedStyle={styles.endCtaPressed} accessibilityRole="button">
+        <Ionicons name="sparkles" size={16} color={C.onGold} />
+        <Text style={styles.endCtaText}>Keep going with Premium</Text>
+      </Tap>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  safe: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.sm,
-  },
-  goPremiumPill: {
-    backgroundColor: '#E8961F',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
+  safe: { flex: 1, alignItems: 'center' },
+  column: { flex: 1, paddingHorizontal: 20 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+  headerText: { flex: 1, paddingRight: 12 },
+  greeting: { fontFamily: FONTS.displayBold, fontSize: 26 },
+  date: { fontFamily: FONTS.bodyMedium, fontSize: 14, marginTop: 2 },
+  streakChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, borderWidth: 1 },
+  chipDay: { backgroundColor: C.surface, borderColor: C.borderOnSky },
+  chipNight: { backgroundColor: C.surfaceOnSky, borderColor: C.surfaceOnSkyStrong },
+  streakText: { fontFamily: FONTS.bodyBold, fontSize: 15 },
+  hero: { alignItems: 'center', marginTop: 2 },
+  cardWrapper: { flex: 1, justifyContent: 'center', paddingBottom: 12 },
+  card: { borderRadius: RADIUS.lg, padding: 26, minHeight: 300, justifyContent: 'space-between', borderWidth: 1 },
+  cardDay: {
+    backgroundColor: C.surface,
+    borderColor: C.borderOnSky,
+    shadowColor: C.shadow,
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 10 },
     elevation: 3,
   },
-  goPremiumText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: 12,
-    color: COLORS.white,
-  },
-  shimmerWrap: {
-    position: 'absolute',
-    top: -10,
-    bottom: -10,
-    width: 30,
-    left: 0,
-  },
-  shimmerGradient: {
-    flex: 1,
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 999,
-  },
-  streakText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: FONT_SIZES.body,
-  },
-  flameEmoji: {
-    marginRight: 4,
-  },
-  cardWrapper: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.lg,
-  },
-  card: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 20,
-    padding: SPACING.xl,
-    minHeight: 320,
-    justifyContent: 'space-between',
-  },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: SPACING.lg,
-  },
-  categoryEmoji: { fontSize: 18, marginRight: SPACING.sm },
-  categoryName: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-  },
-  affirmation: {
-    fontFamily: FONTS.displayBold,
-    fontSize: FONT_SIZES.affirmation,
-    lineHeight: FONT_SIZES.affirmation * 1.3,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: SPACING.xl,
-  },
-  indicator: {
-    textAlign: 'center',
-    marginTop: SPACING.lg,
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.caption,
-  },
-  paywallInner: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  paywallTitle: {
-    fontFamily: FONTS.displayBold,
-    fontSize: 24,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  paywallBody: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.body,
-    textAlign: 'center',
-    marginBottom: SPACING.xl,
-  },
-  paywallCta: {
-    paddingHorizontal: SPACING.xl,
-    paddingVertical: SPACING.md,
-    borderRadius: 999,
-    borderWidth: 1.5,
-  },
-  paywallCtaText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: FONT_SIZES.body,
-  },
-  paywallFooter: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.caption,
-    marginTop: SPACING.lg,
-  },
+  cardNight: { backgroundColor: C.surfaceOnSky, borderColor: C.surfaceOnSkyStrong },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
+  categoryName: { fontFamily: FONTS.bodyMedium, fontSize: 14 },
+  affirmation: { fontFamily: FONTS.displayBold, fontSize: 27, lineHeight: 36 },
+  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 28, paddingHorizontal: 4 },
   micLockBadge: {
     position: 'absolute',
-    bottom: -2,
-    right: -4,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    bottom: -3,
+    right: -5,
+    width: 15,
+    height: 15,
+    borderRadius: 8,
+    backgroundColor: C.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  progressRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 18, gap: 6 },
+  progressDot: { width: 8, height: 8, borderRadius: 4 },
+  progressDotOff: { opacity: 0.35 },
+  progressText: { fontFamily: FONTS.bodyMedium, fontSize: 13, marginLeft: 6 },
+  swipeHint: { textAlign: 'center', marginTop: 18, marginLeft: 0 },
+  endInner: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  endTitle: { fontFamily: FONTS.displayBold, fontSize: 24, textAlign: 'center', marginTop: 6 },
+  endBody: { fontFamily: FONTS.bodyRegular, fontSize: 15, lineHeight: 21, textAlign: 'center', marginTop: 8 },
+  endCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 20,
+    paddingHorizontal: 22,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: C.gold,
+  },
+  endCtaPressed: { backgroundColor: C.goldDeep },
+  endCtaText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: C.onGold },
 });

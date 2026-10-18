@@ -20,6 +20,9 @@ import {
   getCategoryById,
 } from '../../src/utils/affirmations';
 import { useShare } from '../../src/context/ShareContext';
+import CategoryIcon from '../../src/components/art/CategoryIcon';
+import BrightMark from '../../src/components/art/BrightMark';
+import { CATEGORY_PALETTES } from '../../src/theme/colors';
 
 export default function FavoritesScreen() {
   const [items, setItems] = useState<Affirmation[]>([]);
@@ -82,7 +85,9 @@ export default function FavoritesScreen() {
         )}
       >
         <View style={styles.row}>
-          <Text style={styles.rowEmoji}>{category?.icon ?? '💛'}</Text>
+          <View style={[styles.rowGlyph, { backgroundColor: (CATEGORY_PALETTES[item.categoryId] ?? CATEGORY_PALETTES.confidence).from }]}>
+            <CategoryIcon name={item.categoryId} size={20} color={(CATEGORY_PALETTES[item.categoryId] ?? CATEGORY_PALETTES.confidence).ink} />
+          </View>
           <View style={styles.rowText}>
             <Text style={styles.rowAffirmation}>{item.text}</Text>
             <Text style={styles.rowCategory}>{category?.name ?? ''}</Text>
@@ -111,7 +116,7 @@ export default function FavoritesScreen() {
       <SafeAreaView style={styles.container} edges={['top']}>
         {header}
         <View style={styles.empty}>
-          <Text style={styles.emptyEmoji}>💛</Text>
+          <BrightMark size={110} />
           <Text style={styles.emptyTitle}>No favorites yet</Text>
           <Text style={styles.emptySubtitle}>
             Tap the heart on any affirmation to save it here.
@@ -136,6 +141,7 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
+  rowGlyph: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   container: { flex: 1, backgroundColor: COLORS.cream },
   headerRow: {
     flexDirection: 'row',
@@ -147,7 +153,7 @@ const styles = StyleSheet.create({
   },
   header: {
     fontFamily: FONTS.displayBold,
-    fontSize: FONT_SIZES.title,
+    fontSize: 30,
     color: COLORS.textPrimary,
   },
   writeBtn: {

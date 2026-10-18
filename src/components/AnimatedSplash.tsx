@@ -1,90 +1,136 @@
-import { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
+import { useCallback, useRef } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   Easing,
   runOnJS,
   useAnimatedStyle,
+  useReducedMotion,
   useSharedValue,
   withDelay,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { COLORS, FONTS } from '../constants/theme';
+import BrightMark, { MarkRaysSvg } from './art/BrightMark';
+import { C } from '../theme/colors';
+import { FONTS } from '../constants/theme';
+
+/**
+ * Cold start animation (refresh 1.3.0, Drift's AnimatedSplashScreen pattern).
+ *
+ * The first frame is the native splash still exactly: assets/splash-icon.png
+ * (design/splash/splash.svg, the bubble and sun) ART points wide, centered on
+ * C.splash, as configured for expo-splash-screen in app.json. The native still
+ * is hidden only once this view has drawn that frame, so there is no flash.
+ *
+ * Then, in about 1.3 seconds: the dawn gradient comes up behind the mark, the
+ * rays flare, the mark lifts a little, the wordmark settles in, and the layer
+ * fades to reveal Today, which is already rendered underneath. With Reduce
+ * Motion on it holds the still briefly and fades.
+ *
+ * UNVERIFIED until a cold start is seen on device.
+ */
+
+/** Must match imageWidth of the expo-splash-screen plugin in app.json. */
+const ART = 200;
+const T = { rise: 480, rays: 360, wordDelay: 200, word: 380, hold: 860, fade: 400, reducedHold: 250, reducedFade: 300 };
 
 interface AnimatedSplashProps {
   onComplete: () => void;
   onBeginFadeOut?: () => void;
 }
 
-const TAGLINE_FADE_IN_DURATION = 500;
-const TAGLINE_HOLD_DURATION = 900;
-const FADE_OUT_START_DELAY =
-  900 /* tagline start */ + TAGLINE_FADE_IN_DURATION + TAGLINE_HOLD_DURATION;
-const FADE_OUT_DURATION = 600;
-
 export function AnimatedSplash({ onComplete, onBeginFadeOut }: AnimatedSplashProps) {
-  const iconScale = useSharedValue(0.8);
-  const iconOpacity = useSharedValue(0);
-  const titleOpacity = useSharedValue(0);
-  const taglineOpacity = useSharedValue(0);
-  const screenOpacity = useSharedValue(1);
+  const reduceMotion = useReducedMotion();
+  const started = useRef(false);
 
-  useEffect(() => {
-    iconScale.value = withTiming(1, {
-      duration: 600,
-      easing: Easing.out(Easing.ease),
-    });
-    iconOpacity.value = withTiming(1, { duration: 600 });
-    titleOpacity.value = withDelay(400, withTiming(1, { duration: 500 }));
-    taglineOpacity.value = withDelay(
-      900,
-      withTiming(1, { duration: TAGLINE_FADE_IN_DURATION })
-    );
+  const sky = useSharedValue(0);
+  const rays = useSharedValue(0);
+  const lift = useSharedValue(0);
+  const word = useSharedValue(0);
+  const fade = useSharedValue(1);
 
-    const fadeStartTimer = setTimeout(() => {
-      onBeginFadeOut?.();
-      screenOpacity.value = withTiming(
-        0,
-        { duration: FADE_OUT_DURATION, easing: Easing.inOut(Easing.ease) },
-        (finished) => {
-          if (finished) {
-            runOnJS(onComplete)();
-          }
-        }
+  const finish = useCallback(() => onComplete(), [onComplete]);
+  const beginFade = useCallback(() => onBeginFadeOut?.(), [onBeginFadeOut]);
+
+  const start = useCallback(() => {
+    if (started.current) return;
+    started.current = true;
+    if (reduceMotion) {
+      beginFade();
+      fade.value = withDelay(
+        T.reducedHold,
+        withTiming(0, { duration: T.reducedFade }, (done) => {
+          if (done) runOnJS(finish)();
+        })
       );
-    }, FADE_OUT_START_DELAY);
+      return;
+    }
+    const ease = Easing.out(Easing.cubic);
+    sky.value = withTiming(1, { duration: T.rise, easing: ease });
+    rays.value = withSequence(
+      withTiming(1, { duration: T.rays, easing: ease }),
+      withTiming(0.7, { duration: T.hold - T.rays, easing: Easing.inOut(Easing.sin) })
+    );
+    lift.value = withTiming(1, { duration: T.hold, easing: Easing.inOut(Easing.sin) });
+    word.value = withDelay(T.wordDelay, withTiming(1, { duration: T.word, easing: ease }));
+    fade.value = withDelay(
+      T.hold,
+      withTiming(0, { duration: T.fade, easing: Easing.in(Easing.quad) }, (done) => {
+        if (done) runOnJS(finish)();
+      })
+    );
+    setTimeout(beginFade, T.hold);
+  }, [reduceMotion, sky, rays, lift, word, fade, finish, beginFade]);
 
-    return () => clearTimeout(fadeStartTimer);
-  }, [
-    iconScale,
-    iconOpacity,
-    titleOpacity,
-    taglineOpacity,
-    screenOpacity,
-    onComplete,
-    onBeginFadeOut,
-  ]);
+  // Hide the native still only once this view's first frame is on screen
+  const onLayout = useCallback(() => {
+    requestAnimationFrame(() => {
+      SplashScreen.hideAsync().catch(() => {});
+      start();
+    });
+  }, [start]);
 
-  const screenStyle = useAnimatedStyle(() => ({
-    opacity: screenOpacity.value,
+  const containerStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const skyStyle = useAnimatedStyle(() => ({ opacity: sky.value }));
+  const markStyle = useAnimatedStyle(() => ({ transform: [{ translateY: -lift.value * 14 }] }));
+  const raysStyle = useAnimatedStyle(() => ({
+    opacity: 0.4 + rays.value * 0.6,
+    transform: [{ scale: 1 + rays.value * 0.12 }],
   }));
-  const iconStyle = useAnimatedStyle(() => ({
-    opacity: iconOpacity.value,
-    transform: [{ scale: iconScale.value }],
-  }));
-  const titleStyle = useAnimatedStyle(() => ({
-    opacity: titleOpacity.value,
-  }));
-  const taglineStyle = useAnimatedStyle(() => ({
-    opacity: taglineOpacity.value,
+  const wordStyle = useAnimatedStyle(() => ({
+    opacity: word.value,
+    transform: [{ translateY: (1 - word.value) * 8 }],
   }));
 
   return (
-    <Animated.View style={[styles.container, screenStyle]} pointerEvents="none">
-      <Animated.Text style={[styles.icon, iconStyle]}>☀️</Animated.Text>
-      <Animated.Text style={[styles.title, titleStyle]}>SayBright</Animated.Text>
-      <Animated.Text style={[styles.tagline, taglineStyle]}>
-        Speak your brightest self into existence
-      </Animated.Text>
+    <Animated.View
+      style={[styles.container, containerStyle]}
+      onLayout={onLayout}
+      pointerEvents="none"
+      accessible
+      accessibilityLabel="SayBright"
+    >
+      <Animated.View style={[StyleSheet.absoluteFill, skyStyle]}>
+        <LinearGradient
+          colors={[C.dawnTop, C.dawnMid, C.dawnLow]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+      <View style={styles.center}>
+        <Animated.View style={markStyle}>
+          <BrightMark size={ART} rays={false} />
+          <Animated.View style={[StyleSheet.absoluteFill, raysStyle]}>
+            <MarkRaysSvg size={ART} />
+          </Animated.View>
+        </Animated.View>
+        <Animated.View style={[styles.wordWrap, wordStyle]}>
+          <Text style={styles.word}>SayBright</Text>
+        </Animated.View>
+      </View>
     </Animated.View>
   );
 }
@@ -92,27 +138,23 @@ export function AnimatedSplash({ onComplete, onBeginFadeOut }: AnimatedSplashPro
 const styles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 99999,
-    elevation: 99999,
-    backgroundColor: COLORS.primaryGold,
+    backgroundColor: C.splash,
+    zIndex: 1000,
+  },
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: {
-    fontSize: 80,
-    marginBottom: 16,
+  wordWrap: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: ART / 2 + 4,
   },
-  title: {
+  word: {
     fontFamily: FONTS.displayBold,
-    fontSize: 36,
-    color: COLORS.white,
-    marginBottom: 8,
-  },
-  tagline: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.8)',
-    textAlign: 'center',
-    paddingHorizontal: 40,
+    fontSize: 30,
+    color: C.textOnSky,
+    letterSpacing: 0.3,
   },
 });

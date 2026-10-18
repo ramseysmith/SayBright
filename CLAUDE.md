@@ -35,11 +35,9 @@ If any of these is missing, surface the blocker immediately and stop. Do not
 burn build attempts retrying a known blocked toolchain. Prefer EAS Build when a
 local native build is not set up.
 
-**No typecheck or lint script yet.** Unlike the other portfolio apps, this repo
-has no `typecheck` or `lint` in `package.json`. Consider adding
-`"typecheck": "tsc --noEmit"` and `"lint": "expo lint"` so the same gates the
-`/ship` skill expects exist here too. Only `start`, `ios`, `android`, and `web`
-are defined today.
+Gates: `npm run typecheck` and `npm run lint` (two old warnings in
+RecordingModal.tsx are known). `EXPO_OFFLINE=1 CI=1 npx expo export --platform ios`
+proves the bundle.
 
 ## Git and shipping
 
@@ -58,9 +56,40 @@ dashes, or en dashes in prose. Write compound modifiers open, for example crash
 free and cross platform. Write ranges with the word to. Code, flags, and package
 names keep whatever punctuation they need.
 
+## Design: the 1.3.0 refresh is current (Oct 18 2026)
+
+Ramsey asked for a full UI and UX refresh (HQ ui-refresh skill, Drift 1.18.0 as the
+reference). Build on it; do not revert to the old gold and emoji look.
+
+* Tokens: src/theme/colors.ts (dawn family, indigo `accent` for controls, `gold`
+  only for Premium and the sun, SKIES per time of day, CATEGORY_PALETTES). New code
+  imports `C`; src/constants/theme.ts COLORS only maps old names onto the tokens.
+* Art: design/art/*.svg are the category glyph sources; `npm run art` regenerates
+  src/components/art/CategoryIcon.tsx. BrightMark (bubble and sun, as in
+  design/icon/icon.svg) and SunriseHero (one hero per screen) live beside it. The
+  icon is design/icon/icon.svg rendered to assets/icon.png (opaque 1024).
+* Splash: native still assets/splash-icon.png (design/splash/splash.svg) 200 points
+  wide on #FF9A6B (C.splash), then src/components/AnimatedSplash.tsx, under 1.5 s.
+  Splash, haptics and notifications stay UNVERIFIED until seen on device.
+* Product rules (src/lib/free-tier.ts): free is 5 affirmations a day on Today, the
+  Confidence category fully open, a 3 item preview of every other category ending
+  on the paywall (source preview). Writing your own affirmations stays free for
+  everyone (it always was). Premium: all categories, no limit, widgets, voice
+  recordings, no ads. Nothing that was free before 1.3.0 moved behind Premium, so
+  there is no legacy access flag.
+* Ads: interstitials only through `maybeShowInterstitial` (src/lib/ad-policy.ts):
+  never before a finished daily set, one per session, not in the first two
+  minutes. ATT is asked after onboarding; ads are personalized only when allowed.
+  The banner takes no space until it loads.
+* One paywall: src/components/paywall/PaywallView.tsx (route /paywall and the last
+  onboarding step, embedded with "Not now"). Headlines per source.
+* Screenshots: `npm run screenshots` (scripts/screenshots, scenes.json) writes
+  store/screenshots/6.9-inch and store/paywall-review.png. iPhone only. The web
+  export uses web-stubs/ through metro.config.js for native only modules.
+
 ## Scope
 
-For UI and UX changes, prefer the smallest change that fixes the issue. Do not
+Outside a requested refresh, for UI and UX changes prefer the smallest change that fixes the issue. Do not
 redesign surrounding components or expand scope without confirming first. A past
 auto capture camera redesign was rejected as too much and had to be reverted.
 

@@ -1,14 +1,16 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { View, StyleSheet } from 'react-native';
 import {
   BannerAd,
   BannerAdSize,
   getAdsAllowed,
+  getAdsPersonalized,
   getBannerAdUnitId,
   subscribeAdsAllowed,
 } from '../services/ads';
 import { usePremium } from '../context/PremiumContext';
 import { trackEvent } from '../services/analytics';
+import { C } from '../theme/colors';
 
 export function BannerAdWrapper() {
   const { isPremium } = usePremium();
@@ -22,14 +24,21 @@ export function BannerAdWrapper() {
     }
   }, [isPremium, adsAllowed]);
 
-  if (isPremium || !adsAllowed) return null;
+  const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
+  if (isPremium || !adsAllowed || failed) return null;
+
+  // Takes no space until an ad has loaded, and disappears if one fails, so
+  // nobody sees an empty strip or placeholder text.
   return (
-    <View style={styles.container}>
+    <View style={loaded ? styles.container : styles.hidden}>
       <BannerAd
         unitId={getBannerAdUnitId()}
         size={BannerAdSize.ANCHORED_ADAPTIVE_BANNER}
-        requestOptions={{ requestNonPersonalizedAdsOnly: true }}
+        requestOptions={{ requestNonPersonalizedAdsOnly: !getAdsPersonalized() }}
+        onAdLoaded={() => setLoaded(true)}
+        onAdFailedToLoad={() => setFailed(true)}
       />
     </View>
   );
@@ -37,6 +46,12 @@ export function BannerAdWrapper() {
 
 const styles = StyleSheet.create({
   container: {
+    alignItems: 'center',
+    width: '100%',
+    backgroundColor: C.bg0,
+  },
+  // Before the first ad the banner view has no size, so this strip is empty
+  hidden: {
     alignItems: 'center',
     width: '100%',
   },

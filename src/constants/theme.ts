@@ -1,14 +1,21 @@
+import { C } from '../theme/colors';
+
+/**
+ * Legacy names kept so secondary components keep compiling; they now point at
+ * the 1.3.0 dawn tokens in src/theme/colors.ts. New code imports C directly.
+ * primaryGold now means "interactive" (indigo); real Premium gold is C.gold.
+ */
 export const COLORS = {
-  primaryGold: '#F5A623',
-  warmCoral: '#FF6B6B',
-  softLavender: '#B8A9E8',
-  deepIndigo: '#2D1B69',
-  midnight: '#0D0D2B',
-  cream: '#FFF8F0',
-  successGreen: '#4CAF50',
-  textPrimary: '#1A1A2E',
-  textSecondary: '#6B7280',
-  white: '#FFFFFF',
+  primaryGold: C.accent,
+  warmCoral: C.heart,
+  softLavender: C.accentLight,
+  deepIndigo: C.text,
+  midnight: C.text,
+  cream: C.bg0,
+  successGreen: C.success,
+  textPrimary: C.text,
+  textSecondary: C.textSecondary,
+  white: C.white,
 };
 
 export const FONTS = {

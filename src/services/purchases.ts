@@ -31,6 +31,10 @@ export async function initializePurchases(): Promise<void> {
     if (__DEV__) await Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
     await Purchases.configure({ apiKey });
     configured = true;
+    // Apple Search Ads attribution, so installs from ads can be measured
+    if (Platform.OS === 'ios') {
+      Purchases.enableAdServicesAttributionTokenCollection().catch(() => {});
+    }
     if (__DEV__) console.log('[Purchases] configured');
   } catch (error) {
     console.warn('RevenueCat configure failed', error);
@@ -124,20 +128,6 @@ export async function restorePurchases(): Promise<boolean> {
   } catch (error) {
     console.warn('[Purchases] restorePurchases error:', error);
     return false;
-  }
-}
-
-export type PaywallVariant = 'A' | 'B' | 'C';
-
-export async function getPaywallVariant(): Promise<PaywallVariant> {
-  try {
-    const offerings = await Purchases.getOfferings();
-    const id = offerings.current?.identifier;
-    if (id === 'social_proof') return 'B';
-    if (id === 'urgency') return 'C';
-    return 'A';
-  } catch {
-    return 'A';
   }
 }
 

@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,7 +20,6 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
-import { CATEGORIES } from '../../src/data/affirmations';
 import {
   getUserData,
   setSelectedCategories,
@@ -45,6 +45,10 @@ import {
 import { AFFIRMATIONS } from '../../src/data/affirmations';
 import { Audio } from 'expo-av';
 import { trackEvent } from '../../src/services/analytics';
+import * as StoreReview from 'expo-store-review';
+import Constants from 'expo-constants';
+import CategoryIcon from '../../src/components/art/CategoryIcon';
+import { C } from '../../src/theme/colors';
 
 function parseHHMM(value: string): { hour: number; minute: number } {
   const [h, m] = value.split(':').map((v) => parseInt(v, 10));
@@ -206,7 +210,25 @@ export default function SettingsScreen() {
     }
   };
 
-  const showSoonToast = () => toast.show('Coming soon.');
+  const onRate = async () => {
+    try {
+      if (await StoreReview.hasAction()) {
+        await StoreReview.requestReview();
+        return;
+      }
+    } catch {
+      // fall through to the App Store page
+    }
+    openExternal(URLS.writeReview);
+  };
+
+  const onShareApp = () => {
+    Share.share({
+      message: `SayBright gives me five bright affirmations every morning. ${URLS.appStore}`,
+    }).catch(() => {});
+  };
+
+  const appVersion = Constants.expoConfig?.version ?? '';
 
   const openExternal = async (url: string) => {
     try {
@@ -241,11 +263,6 @@ export default function SettingsScreen() {
     setRecordingsModalOpen(true);
   };
 
-  const selectedEmojis = selected
-    .map((id) => CATEGORIES.find((c) => c.id === id)?.icon ?? '')
-    .filter(Boolean)
-    .join('  ');
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -264,7 +281,7 @@ export default function SettingsScreen() {
               <Switch
                 value={reminderEnabled}
                 onValueChange={handleReminderToggle}
-                trackColor={{ true: COLORS.primaryGold, false: '#D1D5DB' }}
+                trackColor={{ true: C.accent, false: C.borderStrong }}
               />
             </View>
           </View>
@@ -286,7 +303,15 @@ export default function SettingsScreen() {
           <Pressable onPress={openPicker} style={styles.row}>
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>Categories</Text>
-              <Text style={styles.rowSubtitle}>{selectedEmojis || 'None'}</Text>
+              {selected.length > 0 ? (
+                <View style={styles.glyphRow}>
+                  {selected.map((id) => (
+                    <CategoryIcon key={id} name={id} size={18} color={C.textSecondary} />
+                  ))}
+                </View>
+              ) : (
+                <Text style={styles.rowSubtitle}>None</Text>
+              )}
             </View>
             <Ionicons
               name="chevron-forward"
@@ -353,15 +378,17 @@ export default function SettingsScreen() {
         <SectionHeader title="Subscription" />
         <View style={styles.section}>
           <Pressable onPress={onPremiumRowPress} style={styles.row}>
-            <Text style={styles.rowEmoji}>✨</Text>
+            <View style={styles.premiumIcon}>
+              <Ionicons name="sparkles" size={16} color={C.onGold} />
+            </View>
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>
-                {isPremium ? 'Premium Active ✨' : 'SayBright Premium'}
+                {isPremium ? 'Premium is active' : 'SayBright Premium'}
               </Text>
               <Text style={styles.rowSubtitle}>
                 {isPremium
                   ? 'Manage your subscription in the App Store.'
-                  : 'Unlock all categories, widgets, and more.'}
+                  : 'Every category, no limits, widgets and no ads.'}
               </Text>
             </View>
             <Ionicons
@@ -392,13 +419,13 @@ export default function SettingsScreen() {
           <SettingsRow
             iconName="star-outline"
             title="Rate SayBright"
-            onPress={showSoonToast}
+            onPress={onRate}
           />
           <View style={styles.divider} />
           <SettingsRow
             iconName="share-outline"
             title="Share SayBright"
-            onPress={showSoonToast}
+            onPress={onShareApp}
           />
           <View style={styles.divider} />
           <SettingsRow
@@ -438,7 +465,7 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        <Text style={styles.footer}>SayBright v1.0.0</Text>
+        <Text style={styles.footer}>SayBright {appVersion}</Text>
       </ScrollView>
 
       <Modal
@@ -652,9 +679,19 @@ function SettingsRow({
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.cream },
   scrollContent: { paddingBottom: SPACING.xxl },
+  glyphRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  premiumIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: C.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: SPACING.md,
+  },
   screenTitle: {
     fontFamily: FONTS.displayBold,
-    fontSize: FONT_SIZES.title,
+    fontSize: 30,
     color: COLORS.textPrimary,
     paddingHorizontal: SPACING.lg,
     paddingTop: SPACING.md,

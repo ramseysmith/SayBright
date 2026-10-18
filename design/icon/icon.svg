@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFC56E"/>
+      <stop offset="0.55" stop-color="#FF8F6A"/>
+      <stop offset="1" stop-color="#EE6A8C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.47" r="0.5">
+      <stop offset="0" stop-color="#FFF6E6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFF6E6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFC24B"/>
+      <stop offset="1" stop-color="#F58A1F"/>
+    </linearGradient>
+    <linearGradient id="bubble" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFCF7"/>
+      <stop offset="1" stop-color="#FFF0E2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="512" cy="480" r="470" fill="url(#glow)"/>
+  <path d="M310 262 H714 A118 118 0 0 1 832 380 V598 A118 118 0 0 1 714 716 H420 L300 812 L326 716 H310 A118 118 0 0 1 192 598 V380 A118 118 0 0 1 310 262 Z" fill="url(#bubble)"/>
+  <g stroke="#F59A2A" stroke-width="34" stroke-linecap="round" fill="none">
+    <path d="M512 336 V384"/>
+    <path d="M378 398 L410 430"/>
+    <path d="M646 398 L614 430"/>
+  </g>
+  <path d="M376 590 A136 136 0 0 1 648 590 Z" fill="url(#sun)"/>
+  <path d="M322 590 H702" stroke="#5B4BC4" stroke-width="30" stroke-linecap="round"/>
+  <path d="M400 644 H624" stroke="#5B4BC4" stroke-width="24" stroke-linecap="round" opacity="0.45"/>
+</svg>

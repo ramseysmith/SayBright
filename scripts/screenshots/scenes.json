@@ -1,0 +1,105 @@
+{
+  "clock": "2026-10-18T08:12:00",
+  "themes": {
+    "dawn": {
+      "bg": "linear-gradient(165deg,#FFC56E 0%,#FF9F7A 50%,#F2789A 100%)",
+      "glow": "rgba(255,246,230,.55)",
+      "stars": 0,
+      "frame": "#2A1E45"
+    },
+    "dusk": {
+      "bg": "linear-gradient(170deg,#FF8F6A 0%,#D96390 45%,#4B2F8A 100%)",
+      "glow": "rgba(255,197,110,.35)",
+      "stars": 0,
+      "frame": "#2A1E45"
+    }
+  },
+  "ink": {
+    "title": "#2A1E45",
+    "accent": "#FFFFFF",
+    "sub": "rgba(42,30,69,.78)"
+  },
+  "storage": {
+    "@saybright_user_data": "{\"favorites\":[\"confidence_02\",\"calm_03\",\"gratitude_05\",\"selflove_04\"],\"customAffirmations\":[],\"streak\":{\"current\":11,\"longest\":14,\"lastCheckIn\":\"2026-10-17\",\"history\":[\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\"]},\"preferences\":{\"reminderEnabled\":true,\"reminderTime\":\"08:00\",\"selectedCategories\":[\"confidence\",\"gratitude\",\"morning\",\"selflove\"],\"hasSeenOnboarding\":true},\"sessionCount\":12}"
+  },
+  "scenes": [
+    {
+      "name": "1-today",
+      "build": "free",
+      "title": "Five affirmations every morning",
+      "subtitle": "Picked for what you want more of",
+      "theme": "dawn",
+      "steps": []
+    },
+    {
+      "name": "2-browse",
+      "build": "premium",
+      "path": "/browse",
+      "title": "Ten categories to explore",
+      "subtitle": "Calm, confidence, career, love and more",
+      "theme": "dawn",
+      "steps": []
+    },
+    {
+      "name": "3-first",
+      "build": "free",
+      "fresh": true,
+      "path": "/onboarding",
+      "title": "Say it out loud",
+      "subtitle": "Your first affirmation in seconds",
+      "theme": "dawn",
+      "steps": [
+        {
+          "click": "Get started"
+        },
+        {
+          "click": "Continue"
+        },
+        {
+          "click": "I said it",
+          "wait": 900
+        }
+      ]
+    },
+    {
+      "name": "4-evening",
+      "build": "premium",
+      "clock": "2026-10-18T19:20:00",
+      "title": "Words that carry you",
+      "subtitle": "Save, share and hear them in your voice",
+      "theme": "dusk",
+      "steps": [
+        {
+          "drag": 2
+        }
+      ]
+    },
+    {
+      "name": "5-streak",
+      "build": "free",
+      "title": "Build a daily streak",
+      "subtitle": "Gentle reminders keep you going",
+      "theme": "dawn",
+      "steps": [
+        {
+          "role": "12 day streak, open calendar",
+          "wait": 1200
+        }
+      ]
+    },
+    {
+      "name": "6-premium",
+      "build": "free",
+      "path": "/paywall",
+      "title": "Your first week is free",
+      "subtitle": "Every category, no limits, no ads",
+      "theme": "dusk",
+      "steps": []
+    }
+  ],
+  "paywall": {
+    "name": "paywall-review",
+    "build": "free",
+    "path": "/paywall"
+  }
+}

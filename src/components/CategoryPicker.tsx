@@ -1,9 +1,11 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { CATEGORIES, Category } from '../data/affirmations';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '../constants/theme';
-import { hexWithAlpha } from '../utils/affirmations';
+import { FONTS } from '../constants/theme';
+import { C, CATEGORY_PALETTES, RADIUS } from '../theme/colors';
+import CategoryIcon from './art/CategoryIcon';
+import Tap from './Tap';
 import { useToast } from './Toast';
 
 interface CategoryPickerProps {
@@ -50,34 +52,30 @@ export function CategoryPicker({
       {CATEGORIES.map((cat) => {
         const selected = selectedIds.includes(cat.id);
         const locked = cat.isPremium && !isPremium;
+        const pal = CATEGORY_PALETTES[cat.id] ?? CATEGORY_PALETTES.confidence;
         return (
-          <Pressable
+          <Tap
             key={cat.id}
             onPress={() => handleToggle(cat)}
-            style={[
-              styles.card,
-              { backgroundColor: hexWithAlpha(cat.color, 0.15) },
-              selected && {
-                borderColor: cat.color,
-                backgroundColor: hexWithAlpha(cat.color, 0.28),
-              },
-            ]}
+            style={[styles.card, { backgroundColor: pal.from }, selected && !locked ? styles.cardSelected : null, locked ? styles.cardLocked : null]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: selected, disabled: locked }}
+            accessibilityLabel={locked ? `${cat.name}, Premium` : cat.name}
           >
-            <Text style={styles.emoji}>{cat.icon}</Text>
-            <Text style={styles.name}>{cat.name}</Text>
+            <CategoryIcon name={cat.id} size={26} color={pal.ink} />
+            <Text style={[styles.name, { color: pal.ink }]} numberOfLines={2}>
+              {cat.name}
+            </Text>
             {locked ? (
-              <View style={styles.lockOverlay}>
-                <Ionicons name="lock-closed" size={20} color={COLORS.white} />
+              <View style={styles.lock}>
+                <Ionicons name="lock-closed" size={11} color={C.onGold} />
+              </View>
+            ) : selected ? (
+              <View style={styles.check}>
+                <Ionicons name="checkmark" size={14} color={C.onAccent} />
               </View>
             ) : null}
-            {selected && !locked ? (
-              <View
-                style={[styles.check, { backgroundColor: cat.color }]}
-              >
-                <Ionicons name="checkmark" size={14} color={COLORS.white} />
-              </View>
-            ) : null}
-          </Pressable>
+          </Tap>
         );
       })}
     </View>
@@ -89,42 +87,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    rowGap: SPACING.md,
+    rowGap: 10,
   },
   card: {
-    width: '48%',
-    aspectRatio: 1,
-    borderRadius: 16,
-    padding: SPACING.md,
+    width: '48.5%',
+    minHeight: 92,
+    borderRadius: RADIUS.md,
+    padding: 14,
     borderWidth: 2,
-    borderColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    borderColor: C.transparent,
+    justifyContent: 'space-between',
+    gap: 8,
   },
-  emoji: {
-    fontSize: 36,
-    marginBottom: SPACING.sm,
-  },
+  cardSelected: { borderColor: C.accent },
+  cardLocked: { opacity: 0.6 },
   name: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: FONT_SIZES.body - 2,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
+    fontFamily: FONTS.bodyBold,
+    fontSize: 14,
   },
-  lockOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  lock: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: C.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   check: {
     position: 'absolute',
-    top: SPACING.sm,
-    right: SPACING.sm,
+    top: 10,
+    right: 10,
     width: 22,
     height: 22,
     borderRadius: 11,
+    backgroundColor: C.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },

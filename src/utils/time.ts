@@ -1,4 +1,6 @@
-export type TimeOfDay = 'morning' | 'afternoon' | 'evening' | 'night';
+import { SKIES, dayPeriod, type DayPeriod } from '../theme/colors';
+
+export type TimeOfDay = DayPeriod;
 
 export interface TimeGradient {
   colors: readonly [string, string, string];
@@ -6,35 +8,17 @@ export interface TimeGradient {
   statusBar: 'dark' | 'light';
 }
 
+// The skies live in src/theme/colors.ts; this keeps the older shape for the
+// share card and anything else that still reads it.
 export const TIME_GRADIENTS: Record<TimeOfDay, TimeGradient> = {
-  morning: {
-    colors: ['#F5A623', '#FFB088', '#FFF8F0'],
-    textColor: '#1A1A2E',
-    statusBar: 'dark',
-  },
-  afternoon: {
-    colors: ['#87CEEB', '#B8A9E8', '#E8E0F5'],
-    textColor: '#1A1A2E',
-    statusBar: 'dark',
-  },
-  evening: {
-    colors: ['#FF6B6B', '#C85A8A', '#2D1B69'],
-    textColor: '#FFFFFF',
-    statusBar: 'light',
-  },
-  night: {
-    colors: ['#1A1A2E', '#151530', '#0D0D2B'],
-    textColor: '#FFFFFF',
-    statusBar: 'light',
-  },
+  morning: { colors: SKIES.morning.colors, textColor: SKIES.morning.ink, statusBar: SKIES.morning.statusBar },
+  afternoon: { colors: SKIES.afternoon.colors, textColor: SKIES.afternoon.ink, statusBar: SKIES.afternoon.statusBar },
+  evening: { colors: SKIES.evening.colors, textColor: SKIES.evening.ink, statusBar: SKIES.evening.statusBar },
+  night: { colors: SKIES.night.colors, textColor: SKIES.night.ink, statusBar: SKIES.night.statusBar },
 };
 
 export function getTimePeriod(date: Date = new Date()): TimeOfDay {
-  const hour = date.getHours();
-  if (hour >= 5 && hour < 12) return 'morning';
-  if (hour >= 12 && hour < 17) return 'afternoon';
-  if (hour >= 17 && hour < 21) return 'evening';
-  return 'night';
+  return dayPeriod(date);
 }
 
 export function getTimeOfDay(date: Date = new Date()): {
@@ -43,4 +27,17 @@ export function getTimeOfDay(date: Date = new Date()): {
 } {
   const period = getTimePeriod(date);
   return { period, gradient: TIME_GRADIENTS[period] };
+}
+
+export function greetingFor(period: TimeOfDay): string {
+  switch (period) {
+    case 'morning':
+      return 'Good morning';
+    case 'afternoon':
+      return 'Good afternoon';
+    case 'evening':
+      return 'Good evening';
+    default:
+      return 'Good night';
+  }
 }

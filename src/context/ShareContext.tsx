@@ -16,7 +16,7 @@ import { ShareCard } from '../components/ShareCard';
 import { usePremium } from './PremiumContext';
 import { useToast } from '../components/Toast';
 import { trackEvent } from '../services/analytics';
-import { showInterstitial } from '../services/ads';
+import { maybeShowInterstitial } from '../services/ads';
 
 interface ShareContextValue {
   shareAffirmation: (affirmation: Affirmation) => Promise<void>;
@@ -69,7 +69,7 @@ export function ShareProvider({ children }: { children: ReactNode }) {
           isPremium,
         });
         if (!isPremium) {
-          showInterstitial();
+          maybeShowInterstitial(false).catch(() => {});
         }
       } catch {
         toast.show('Could not generate share card.');

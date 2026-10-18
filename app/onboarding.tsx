@@ -1,624 +1,332 @@
-import { useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Dimensions,
-  FlatList,
-  Pressable,
-  NativeScrollEvent,
-  NativeSyntheticEvent,
-  ScrollView,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import { useMemo, useState } from 'react';
+import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from '@react-native-community/datetimepicker';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '../src/constants/theme';
-import { TIME_GRADIENTS } from '../src/utils/time';
+import { FONTS } from '../src/constants/theme';
+import { C, MAX_CONTENT_WIDTH, RADIUS, SKIES } from '../src/theme/colors';
 import { CategoryPicker } from '../src/components/CategoryPicker';
-import {
-  setHasSeenOnboarding,
-  setSelectedCategories,
-  updateUserData,
-} from '../src/services/storage';
+import { setHasSeenOnboarding, setSelectedCategories, toggleFavorite, updateUserData } from '../src/services/storage';
 import { trackEvent } from '../src/services/analytics';
-import {
-  requestNotificationPermissions,
-  scheduleDailyReminder,
-} from '../src/services/notifications';
+import { requestNotificationPermissions, scheduleDailyReminder } from '../src/services/notifications';
+import { getDailyAffirmations, getDisplayInfo, getTodayKey } from '../src/utils/affirmations';
+import { FREE_DAILY_LIMIT } from '../src/lib/free-tier';
+import BrightMark from '../src/components/art/BrightMark';
+import CategoryIcon from '../src/components/art/CategoryIcon';
+import PaywallView from '../src/components/paywall/PaywallView';
+import Tap from '../src/components/Tap';
 import { useOnboardingFlow } from './_layout';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-interface Slide {
-  key: string;
-  emoji: string;
-  title: string;
-  subtitle: string;
-  gradient: readonly [string, string, string];
-  textColor: string;
-  statusBar: 'dark' | 'light';
-}
-
-const SLIDES: Slide[] = [
-  {
-    key: 'welcome',
-    emoji: '☀️',
-    title: 'Welcome to SayBright',
-    subtitle: 'Speak your brightest self into existence.',
-    gradient: TIME_GRADIENTS.morning.colors,
-    textColor: TIME_GRADIENTS.morning.textColor,
-    statusBar: TIME_GRADIENTS.morning.statusBar,
-  },
-  {
-    key: 'ritual',
-    emoji: '✨',
-    title: 'Your Daily Ritual',
-    subtitle:
-      'Swipe through affirmations chosen just for you. Save your favorites and share them with the world.',
-    gradient: TIME_GRADIENTS.afternoon.colors,
-    textColor: TIME_GRADIENTS.afternoon.textColor,
-    statusBar: TIME_GRADIENTS.afternoon.statusBar,
-  },
-  {
-    key: 'consistent',
-    emoji: '🔥',
-    title: 'Stay Consistent',
-    subtitle:
-      'Build a daily streak and watch your mindset transform over time.',
-    gradient: TIME_GRADIENTS.evening.colors,
-    textColor: TIME_GRADIENTS.evening.textColor,
-    statusBar: TIME_GRADIENTS.evening.statusBar,
-  },
-];
-
-const REMINDER_GRADIENT: readonly [string, string, string] = [
-  '#B8A9E8',
-  '#E8E0F5',
-  '#FFF8F0',
-];
-
-type PageItem = Slide | { key: 'focus' } | { key: 'reminder' };
+/**
+ * Onboarding (refresh 1.3.0, the Drift pattern):
+ * 1. Welcome with the mark.
+ * 2. Pick your focus.
+ * 3. Say your first affirmation for real (today's first one, the same the Today
+ *    tab and the reminder will show).
+ * 4. The daily reminder, asked at the moment it makes sense.
+ * 5. The free week paywall, with "Not now" always visible.
+ */
+type Step = 'welcome' | 'focus' | 'first' | 'reminder' | 'paywall';
+const STEPS: Step[] = ['welcome', 'focus', 'first', 'reminder', 'paywall'];
 
 export default function OnboardingScreen() {
-  const listRef = useRef<FlatList<PageItem>>(null);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [selected, setSelected] = useState<string[]>([
-    'confidence',
-    'gratitude',
-  ]);
   const router = useRouter();
   const { completeOnboarding } = useOnboardingFlow();
+  const [step, setStep] = useState<Step>('welcome');
+  const [selected, setSelected] = useState<string[]>(['confidence', 'gratitude']);
+  const [reminder, setReminder] = useState<{ enabled: boolean; time: string }>({ enabled: false, time: '08:00' });
+  const index = STEPS.indexOf(step);
 
-  const pages: PageItem[] = [...SLIDES, { key: 'focus' }, { key: 'reminder' }];
-  const totalPages = pages.length;
-  const currentPage = pages[pageIndex];
-  const isFocus = currentPage?.key === 'focus';
-  const isReminder = currentPage?.key === 'reminder';
-  const canProceedFocus = selected.length >= 2 && selected.length <= 4;
-
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const next = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
-    if (next !== pageIndex) setPageIndex(next);
+  const go = (next: Step) => {
+    Haptics.selectionAsync().catch(() => {});
+    setStep(next);
   };
 
-  const finishOnboarding = async (
-    reminderEnabled: boolean,
-    reminderTime: string
-  ) => {
+  const finish = async () => {
     await setSelectedCategories(selected);
     await updateUserData((current) => ({
       ...current,
-      preferences: {
-        ...current.preferences,
-        reminderEnabled,
-        reminderTime,
-      },
+      preferences: { ...current.preferences, reminderEnabled: reminder.enabled, reminderTime: reminder.time },
     }));
     await setHasSeenOnboarding(true);
-    trackEvent('onboarding_complete', {
-      categoriesSelected: selected.length,
-      remindersEnabled: reminderEnabled,
-    });
+    trackEvent('onboarding_complete', { categoriesSelected: selected.length, remindersEnabled: reminder.enabled });
     completeOnboarding();
     router.replace('/(tabs)');
   };
 
-  const handleNext = async () => {
-    Haptics.selectionAsync();
-    if (isReminder) return; // reminder slide handles its own actions
-    if (isFocus && !canProceedFocus) return;
-    const target = pageIndex + 1;
-    listRef.current?.scrollToIndex({ index: target, animated: true });
-  };
-
-  const currentStatusBar: 'light' | 'dark' = isFocus
-    ? 'dark'
-    : isReminder
-      ? 'dark'
-      : SLIDES[pageIndex]?.statusBar ?? 'dark';
-
-  const ctaLabel = 'Next';
-  const ctaDisabled = isFocus && !canProceedFocus;
+  if (step === 'paywall') {
+    return (
+      <Animated.View style={styles.flex} entering={FadeIn.duration(250)}>
+        <PaywallView source="onboarding" embedded onDone={finish} />
+      </Animated.View>
+    );
+  }
 
   return (
     <View style={styles.root}>
-      <StatusBar style={currentStatusBar} />
-      <FlatList
-        ref={listRef}
-        data={pages}
-        keyExtractor={(item) => item.key}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={!isReminder /* lock during reminder confirmation */ || true}
-        onScroll={onScroll}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => {
-          if (item.key === 'focus') {
-            return (
-              <FocusSlide
-                selected={selected}
-                onChange={setSelected}
-                onPremiumTap={() => router.push('/paywall?source=onboarding')}
-              />
-            );
-          }
-          if (item.key === 'reminder') {
-            return (
-              <ReminderSlide onComplete={finishOnboarding} />
-            );
-          }
-          return <IntroSlide slide={item as Slide} />;
-        }}
-        getItemLayout={(_, index) => ({
-          length: SCREEN_WIDTH,
-          offset: SCREEN_WIDTH * index,
-          index,
-        })}
-      />
-      {!isReminder ? (
-        <SafeAreaView edges={['bottom']} style={styles.footer} pointerEvents="box-none">
-          <View style={styles.dots}>
-            {pages.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor:
-                      i === pageIndex
-                        ? COLORS.textPrimary
-                        : 'rgba(26, 26, 46, 0.25)',
-                  },
-                ]}
-              />
-            ))}
-          </View>
-          <Pressable
-            onPress={handleNext}
-            disabled={ctaDisabled}
-            style={[
-              styles.cta,
-              { backgroundColor: COLORS.textPrimary },
-              ctaDisabled && { opacity: 0.4 },
-            ]}
-          >
-            <Text style={styles.ctaText}>{ctaLabel}</Text>
-          </Pressable>
-        </SafeAreaView>
-      ) : (
-        <SafeAreaView
-          edges={['bottom']}
-          style={styles.dotsOnlyFooter}
-          pointerEvents="none"
-        >
-          <View style={styles.dots}>
-            {pages.map((_, i) => (
-              <View
-                key={i}
-                style={[
-                  styles.dot,
-                  {
-                    backgroundColor:
-                      i === pageIndex
-                        ? COLORS.textPrimary
-                        : 'rgba(26, 26, 46, 0.25)',
-                  },
-                ]}
-              />
-            ))}
-          </View>
-        </SafeAreaView>
-      )}
-    </View>
-  );
-}
-
-function IntroSlide({ slide }: { slide: Slide }) {
-  return (
-    <View style={styles.slide}>
+      <StatusBar style="dark" />
       <LinearGradient
-        colors={slide.gradient}
+        colors={step === 'first' ? SKIES.morning.colors : [C.dawnTop, C.bg2, C.bg0]}
+        locations={step === 'first' ? undefined : [0, 0.4, 0.75]}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
       />
-      <SafeAreaView edges={['top']} style={styles.slideInner}>
-        <View style={styles.slideContent}>
-          <Text style={styles.heroEmoji}>{slide.emoji}</Text>
-          <Text style={[styles.title, { color: slide.textColor }]}>
-            {slide.title}
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                color:
-                  slide.textColor === COLORS.white
-                    ? 'rgba(255, 255, 255, 0.85)'
-                    : 'rgba(26, 26, 46, 0.7)',
-              },
-            ]}
-          >
-            {slide.subtitle}
-          </Text>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.column}>
+          <View style={styles.topBar}>
+            {index > 0 ? (
+              <Tap onPress={() => go(STEPS[index - 1])} hitSlop={12} style={styles.back} accessibilityRole="button" accessibilityLabel="Back">
+                <Ionicons name="chevron-back" size={22} color={C.text} />
+              </Tap>
+            ) : (
+              <View style={styles.back} />
+            )}
+            <View style={styles.dots}>
+              {STEPS.map((s, i) => (
+                <View key={s} style={[styles.dot, i === index ? styles.dotOn : null, i < index ? styles.dotDone : null]} />
+              ))}
+            </View>
+            <View style={styles.back} />
+          </View>
+
+          <Animated.View key={step} style={styles.flex} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)}>
+            {step === 'welcome' ? <Welcome onNext={() => go('focus')} /> : null}
+            {step === 'focus' ? <Focus selected={selected} onChange={setSelected} onNext={() => go('first')} /> : null}
+            {step === 'first' ? <FirstAffirmation selected={selected} onNext={() => go('reminder')} /> : null}
+            {step === 'reminder' ? (
+              <Reminder
+                onDone={(enabled, time) => {
+                  setReminder({ enabled, time });
+                  trackEvent('paywall_shown', { variant: 'refresh', source: 'onboarding' });
+                  go('paywall');
+                }}
+              />
+            ) : null}
+          </Animated.View>
         </View>
       </SafeAreaView>
     </View>
   );
 }
 
-function FocusSlide({
-  selected,
-  onChange,
-  onPremiumTap,
-}: {
-  selected: string[];
-  onChange: (ids: string[]) => void;
-  onPremiumTap: () => void;
-}) {
+function PrimaryButton({ label, onPress, disabled }: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
-    <View style={[styles.slide, { backgroundColor: COLORS.cream }]}>
-      <SafeAreaView edges={['top']} style={styles.slideInner}>
-        <ScrollView
-          contentContainerStyle={styles.focusContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[styles.title, styles.titleSmaller, { color: COLORS.textPrimary }]}>
-            Choose Your Focus
-          </Text>
-          <Text
-            style={[
-              styles.subtitle,
-              styles.subtitleSmaller,
-              { color: COLORS.textSecondary },
-            ]}
-          >
-            Pick 2 to 4 categories to get started.
-          </Text>
-          <View style={styles.pickerWrap}>
-            <CategoryPicker
-              selectedIds={selected}
-              onChange={onChange}
-              isPremium={false}
-              maxSelections={4}
-              onLockedTap={onPremiumTap}
-            />
-          </View>
-        </ScrollView>
-      </SafeAreaView>
+    <Tap
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.primary, disabled ? styles.primaryDisabled : null]}
+      pressedStyle={styles.primaryPressed}
+      accessibilityRole="button"
+      accessibilityState={{ disabled: !!disabled }}
+    >
+      <LinearGradient colors={[C.buttonFrom, C.buttonTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Text style={styles.primaryText}>{label}</Text>
+    </Tap>
+  );
+}
+
+function Welcome({ onNext }: { onNext: () => void }) {
+  const { height } = useWindowDimensions();
+  return (
+    <View style={styles.page}>
+      <View style={styles.center}>
+        <BrightMark size={Math.min(220, height * 0.26)} />
+        <Text style={styles.bigTitle}>Say it bright</Text>
+        <Text style={styles.body}>
+          {`${FREE_DAILY_LIMIT} affirmations a day, picked for what you want more of. Say them out loud and start the day on your side.`}
+        </Text>
+      </View>
+      <PrimaryButton label="Get started" onPress={onNext} />
     </View>
   );
 }
 
-type ReminderPhase = 'idle' | 'requesting' | 'denied' | 'success';
+function Focus({ selected, onChange, onNext }: { selected: string[]; onChange: (ids: string[]) => void; onNext: () => void }) {
+  return (
+    <View style={styles.page}>
+      <ScrollView contentContainerStyle={styles.focusScroll} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>What do you want more of?</Text>
+        <Text style={styles.body}>Pick up to four. You can change them anytime in Settings.</Text>
+        <View style={styles.picker}>
+          <CategoryPicker selectedIds={selected} onChange={onChange} isPremium={false} maxSelections={4} />
+        </View>
+      </ScrollView>
+      <PrimaryButton label="Continue" onPress={onNext} disabled={selected.length === 0} />
+    </View>
+  );
+}
 
-function ReminderSlide({
-  onComplete,
-}: {
-  onComplete: (enabled: boolean, time: string) => Promise<void>;
-}) {
+function FirstAffirmation({ selected, onNext }: { selected: string[]; onNext: () => void }) {
+  const affirmation = useMemo(() => getDailyAffirmations(getTodayKey(), selected, 1)[0], [selected]);
+  const category = affirmation ? getDisplayInfo(affirmation.categoryId) : undefined;
+  const [said, setSaid] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const onSaid = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    trackEvent('onboarding_affirmation_said');
+    setSaid(true);
+  };
+
+  const onSave = async () => {
+    if (!affirmation || saved) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    await toggleFavorite(affirmation.id);
+    trackEvent('affirmation_favorited', { categoryId: affirmation.categoryId });
+    setSaved(true);
+  };
+
+  return (
+    <View style={styles.page}>
+      <View style={styles.center}>
+        <Text style={styles.kicker}>Your first one</Text>
+        <Text style={styles.title}>Say it out loud</Text>
+        {affirmation ? (
+          <View style={styles.card}>
+            {category ? (
+              <View style={styles.cardCat}>
+                <CategoryIcon name={affirmation.categoryId} size={18} color={C.textSecondary} />
+                <Text style={styles.cardCatText}>{category.name}</Text>
+              </View>
+            ) : null}
+            <Text style={styles.cardText}>{affirmation.text}</Text>
+            <Tap onPress={onSave} hitSlop={10} style={styles.saveRow} accessibilityRole="button" accessibilityLabel={saved ? 'Saved to favorites' : 'Save to favorites'}>
+              <Ionicons name={saved ? 'heart' : 'heart-outline'} size={22} color={saved ? C.heart : C.textSecondary} />
+              <Text style={styles.saveText}>{saved ? 'Saved to favorites' : 'Save it'}</Text>
+            </Tap>
+          </View>
+        ) : null}
+        {said ? (
+          <Animated.View entering={FadeIn.duration(250)} style={styles.saidRow}>
+            <Ionicons name="checkmark-circle" size={22} color={C.success} />
+            <Text style={styles.saidText}>Day one done. Four more are waiting on Today.</Text>
+          </Animated.View>
+        ) : (
+          <Text style={styles.hint}>Slowly, like you mean it. Then tap below.</Text>
+        )}
+      </View>
+      {said ? <PrimaryButton label="Continue" onPress={onNext} /> : <PrimaryButton label="I said it" onPress={onSaid} />}
+    </View>
+  );
+}
+
+function Reminder({ onDone }: { onDone: (enabled: boolean, time: string) => void }) {
   const [date, setDate] = useState(() => {
     const d = new Date();
     d.setHours(8, 0, 0, 0);
     return d;
   });
-  const [phase, setPhase] = useState<ReminderPhase>('idle');
+  const [denied, setDenied] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const hhmm = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
-  const formatTime = (d: Date): string => {
-    const ampm = d.getHours() >= 12 ? 'PM' : 'AM';
-    const h12 = d.getHours() % 12 === 0 ? 12 : d.getHours() % 12;
-    return `${h12}:${String(d.getMinutes()).padStart(2, '0')} ${ampm}`;
-  };
-
-  const formatHHMM = (d: Date): string =>
-    `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-
-  const onTimeChange = (_: DateTimePickerEvent, picked?: Date) => {
+  const onChange = (_: DateTimePickerEvent, picked?: Date) => {
     if (picked) setDate(picked);
   };
 
-  const handleEnable = async () => {
-    Haptics.selectionAsync();
-    setPhase('requesting');
+  const enable = async () => {
+    setBusy(true);
     const granted = await requestNotificationPermissions();
+    setBusy(false);
     if (!granted) {
-      setPhase('denied');
+      setDenied(true);
       return;
     }
     await scheduleDailyReminder(date.getHours(), date.getMinutes());
-    setPhase('success');
-    setTimeout(() => {
-      onComplete(true, formatHHMM(date));
-    }, 1500);
-  };
-
-  const handleSkip = async () => {
-    Haptics.selectionAsync();
-    await onComplete(false, formatHHMM(date));
-  };
-
-  const handleContinueWithout = async () => {
-    await onComplete(false, formatHHMM(date));
+    onDone(true, hhmm);
   };
 
   return (
-    <View style={styles.slide}>
-      <LinearGradient
-        colors={REMINDER_GRADIENT}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-      <SafeAreaView edges={['top', 'bottom']} style={styles.slideInner}>
-        <ScrollView
-          contentContainerStyle={styles.reminderContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.heroEmoji}>🔔</Text>
-          <Text style={[styles.title, styles.reminderTitle]}>
-            Never Miss Your Affirmation
+    <View style={styles.page}>
+      <ScrollView contentContainerStyle={styles.focusScroll} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>When should we nudge you?</Text>
+        <Text style={styles.body}>{"One gentle reminder a day with your first affirmation. It's how streaks start."}</Text>
+        <View style={styles.timeCard}>
+          <Text style={styles.timeLabel}>
+            {date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
           </Text>
-          <Text style={styles.reminderSubtitle}>
-            {"Pick a time each day and we'll send you a gentle reminder with a " +
-              'fresh affirmation.'}
-          </Text>
-
-          <View style={styles.pickerCard}>
-            <Text style={styles.pickerCardLabel}>Reminder time</Text>
-            <Text style={styles.pickerCardTime}>{formatTime(date)}</Text>
-            <DateTimePicker
-              value={date}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={onTimeChange}
-              style={Platform.OS === 'ios' ? styles.iosPicker : undefined}
-            />
-          </View>
-
-          {phase === 'success' ? (
-            <View style={styles.successBox}>
-              <Ionicons
-                name="checkmark-circle"
-                size={32}
-                color={COLORS.successGreen}
-              />
-              <Text style={styles.successText}>{"You're all set!"}</Text>
-            </View>
-          ) : phase === 'denied' ? null : (
-            <Pressable
-              onPress={handleEnable}
-              disabled={phase === 'requesting'}
-              style={[
-                styles.enableBtn,
-                phase === 'requesting' && { opacity: 0.7 },
-              ]}
-            >
-              {phase === 'requesting' ? (
-                <ActivityIndicator color={COLORS.white} />
-              ) : (
-                <Text style={styles.enableBtnText}>Enable Reminders</Text>
-              )}
-            </Pressable>
-          )}
-
-          {phase === 'denied' ? (
-            <>
-              <Text style={styles.deniedNote}>
-                No worries, you can always enable reminders later in Settings.
-              </Text>
-              <Pressable
-                onPress={handleContinueWithout}
-                style={styles.skipBtn}
-              >
-                <Text style={styles.skipBtnText}>Continue Without Reminders</Text>
-              </Pressable>
-            </>
-          ) : phase === 'idle' ? (
-            <Pressable onPress={handleSkip} style={styles.skipBtn}>
-              <Text style={styles.skipBtnText}>Skip for Now</Text>
-            </Pressable>
-          ) : null}
-        </ScrollView>
-      </SafeAreaView>
+          <DateTimePicker
+            value={date}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={onChange}
+            style={Platform.OS === 'ios' ? styles.iosPicker : undefined}
+          />
+        </View>
+        {denied ? (
+          <Text style={styles.denied}>Notifications are off for SayBright. You can turn them on later in Settings.</Text>
+        ) : null}
+      </ScrollView>
+      {denied ? (
+        <PrimaryButton label="Continue" onPress={() => onDone(false, hhmm)} />
+      ) : (
+        <>
+          <PrimaryButton label={busy ? 'One moment' : 'Remind me daily'} onPress={enable} disabled={busy} />
+          <Tap onPress={() => onDone(false, hhmm)} style={styles.secondary} accessibilityRole="button">
+            <Text style={styles.secondaryText}>Not now</Text>
+          </Tap>
+        </>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.cream },
-  slide: { width: SCREEN_WIDTH, flex: 1 },
-  slideInner: { flex: 1 },
-  slideContent: {
-    flex: 1,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xxl,
-    alignItems: 'center',
-    justifyContent: 'center',
+  root: { flex: 1, backgroundColor: C.bg0 },
+  flex: { flex: 1 },
+  safe: { flex: 1, alignItems: 'center' },
+  column: { flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, paddingHorizontal: 22 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 },
+  back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  dots: { flexDirection: 'row', gap: 6 },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.borderStrong },
+  dotOn: { width: 22, backgroundColor: C.accent },
+  dotDone: { backgroundColor: C.accentLight },
+  page: { flex: 1, paddingBottom: 12 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  bigTitle: { fontFamily: FONTS.displayBold, fontSize: 38, color: C.text, marginTop: 8, textAlign: 'center' },
+  title: { fontFamily: FONTS.displayBold, fontSize: 28, lineHeight: 34, color: C.text, textAlign: 'center' },
+  kicker: { fontFamily: FONTS.bodyBold, fontSize: 13, letterSpacing: 1, color: C.textSecondary, textTransform: 'uppercase', marginBottom: 4 },
+  body: { fontFamily: FONTS.bodyRegular, fontSize: 16, lineHeight: 23, color: C.textSecondary, textAlign: 'center', marginTop: 10, paddingHorizontal: 8 },
+  hint: { fontFamily: FONTS.bodyRegular, fontSize: 15, color: C.textSecondary, textAlign: 'center', marginTop: 18 },
+  focusScroll: { paddingTop: 16, paddingBottom: 16 },
+  picker: { marginTop: 22 },
+  card: {
+    alignSelf: 'stretch',
+    marginTop: 22,
+    padding: 24,
+    borderRadius: RADIUS.lg,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.borderOnSky,
   },
-  heroEmoji: {
-    fontSize: 72,
-    marginBottom: SPACING.lg,
-  },
-  title: {
-    fontFamily: FONTS.displayBold,
-    fontSize: 32,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  titleSmaller: {
-    fontSize: 28,
-    marginTop: SPACING.lg,
-  },
-  subtitle: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.subtitle,
-    textAlign: 'center',
-    lineHeight: 26,
-  },
-  subtitleSmaller: {
-    fontSize: FONT_SIZES.body,
-    marginBottom: SPACING.lg,
-  },
-  focusContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.lg,
-    paddingBottom: 160,
-  },
-  pickerWrap: {
-    marginTop: SPACING.md,
-  },
-  reminderContent: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.xxl + 24,
+  cardCat: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+  cardCatText: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: C.textSecondary },
+  cardText: { fontFamily: FONTS.displayBold, fontSize: 26, lineHeight: 35, color: C.text },
+  saveRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20, alignSelf: 'flex-start' },
+  saveText: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: C.textSecondary },
+  saidRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 18, paddingHorizontal: 12 },
+  saidText: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: C.text, flexShrink: 1 },
+  timeCard: {
+    marginTop: 24,
+    paddingVertical: 8,
+    borderRadius: RADIUS.lg,
+    backgroundColor: C.surfaceStrong,
+    borderWidth: 1,
+    borderColor: C.border,
     alignItems: 'center',
   },
-  reminderTitle: {
-    fontSize: 28,
-    color: COLORS.textPrimary,
-  },
-  reminderSubtitle: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.body,
-    textAlign: 'center',
-    color: 'rgba(26, 26, 46, 0.72)',
-    marginBottom: SPACING.lg,
-    lineHeight: 22,
-  },
-  pickerCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-    marginVertical: SPACING.md,
-    width: '100%',
-    alignItems: 'center',
-  },
-  pickerCardLabel: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: SPACING.xs,
-  },
-  pickerCardTime: {
-    fontFamily: FONTS.displayBold,
-    fontSize: 36,
-    color: COLORS.textPrimary,
-    marginBottom: SPACING.sm,
-  },
-  iosPicker: {
-    height: 180,
-    width: 240,
-  },
-  enableBtn: {
-    backgroundColor: COLORS.primaryGold,
-    borderRadius: 12,
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    width: '100%',
-    marginTop: SPACING.md,
-  },
-  enableBtnText: {
-    fontFamily: FONTS.bodyBold,
-    color: COLORS.white,
-    fontSize: 18,
-  },
-  successBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: SPACING.md,
-    gap: SPACING.sm,
-  },
-  successText: {
-    fontFamily: FONTS.bodyBold,
-    color: COLORS.successGreen,
-    fontSize: FONT_SIZES.body,
-  },
-  deniedNote: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 14,
-    color: 'rgba(26, 26, 46, 0.72)',
-    textAlign: 'center',
-    marginTop: SPACING.md,
-    lineHeight: 20,
-  },
-  skipBtn: {
-    paddingVertical: SPACING.md,
-    alignItems: 'center',
-    marginTop: SPACING.sm,
-  },
-  skipBtnText: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: 14,
-    color: COLORS.textSecondary,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.md,
-  },
-  dotsOnlyFooter: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: SPACING.md,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginBottom: SPACING.md,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginHorizontal: 4,
-  },
-  cta: {
-    paddingVertical: SPACING.md,
-    borderRadius: 999,
-    alignItems: 'center',
-  },
-  ctaText: {
-    fontFamily: FONTS.bodyBold,
-    color: COLORS.white,
-    fontSize: FONT_SIZES.body,
-  },
+  iosPicker: { height: 190, alignSelf: 'stretch' },
+  timeLabel: { fontFamily: FONTS.displayBold, fontSize: 34, color: C.text, marginTop: 10 },
+  denied: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: C.textSecondary, textAlign: 'center', marginTop: 14 },
+  primary: { height: 56, borderRadius: 28, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  primaryPressed: { opacity: 0.9 },
+  primaryDisabled: { opacity: 0.45 },
+  primaryText: { fontFamily: FONTS.bodyBold, fontSize: 17, color: C.onAccent },
+  secondary: { alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 20, marginTop: 4 },
+  secondaryText: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: C.textSecondary },
 });

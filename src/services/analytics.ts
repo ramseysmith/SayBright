@@ -28,7 +28,9 @@ export type AnalyticsEvent =
   | 'recording_created'
   | 'recording_played'
   | 'custom_affirmation_created'
-  | 'custom_affirmation_deleted';
+  | 'custom_affirmation_deleted'
+  | 'daily_set_finished'
+  | 'onboarding_affirmation_said';
 
 type EventValue = string | number | boolean | null | undefined;
 
@@ -98,6 +100,10 @@ function toPortfolioEvent(
       return [['success_moment', { kind: 'custom' }]];
     case 'streak_milestone':
       return [['success_moment', { kind: 'streak' }]];
+    case 'daily_set_finished':
+      return [['success_moment', { kind: 'daily_set' }]];
+    case 'onboarding_affirmation_said':
+      return [['core_action', { kind: 'onboarding_said' }]];
     case 'notification_enabled':
       return [['reminder_opt_in', { source: 'settings' }]];
     case 'paywall_shown':

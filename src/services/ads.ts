@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { mayShowInterstitial, markInterstitialShown } from '../lib/ad-policy';
 import {
   InterstitialAd,
   AdEventType,
@@ -34,7 +35,15 @@ let isInterstitialLoaded = false;
 let adsAllowed = Platform.OS !== 'ios';
 const adsAllowedListeners = new Set<() => void>();
 
-export function allowAds(): void {
+// Personalized ads only when the person allowed tracking in the ATT prompt.
+let personalized = false;
+
+export function getAdsPersonalized(): boolean {
+  return personalized;
+}
+
+export function allowAds(trackingGranted = false): void {
+  personalized = trackingGranted;
   if (adsAllowed) return;
   adsAllowed = true;
   adsAllowedListeners.forEach((listener) => listener());
@@ -53,7 +62,7 @@ export function preloadInterstitial(): void {
   if (!adsAllowed) return;
   try {
     interstitialAd = InterstitialAd.createForAdRequest(AD_UNITS.interstitial, {
-      requestNonPersonalizedAdsOnly: true,
+      requestNonPersonalizedAdsOnly: !personalized,
     });
 
     interstitialAd.addAdEventListener(AdEventType.LOADED, () => {
@@ -75,7 +84,20 @@ export function preloadInterstitial(): void {
   }
 }
 
-export function showInterstitial(): boolean {
+/**
+ * The only way screens show a full screen ad. Graysmith Labs rules (Drift
+ * 1.18.0, src/lib/ad-policy.ts): never while busy, never before the first
+ * finished daily set, at most one per session, not in the first two minutes.
+ * Callers check Premium first.
+ */
+export async function maybeShowInterstitial(busy = false): Promise<boolean> {
+  if (!(await mayShowInterstitial(busy))) return false;
+  const shown = showInterstitial();
+  if (shown) markInterstitialShown();
+  return shown;
+}
+
+function showInterstitial(): boolean {
   if (isInterstitialLoaded && interstitialAd) {
     try {
       interstitialAd.show();

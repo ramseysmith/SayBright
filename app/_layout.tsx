@@ -1,11 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import {
-  View,
-  ActivityIndicator,
-  StyleSheet,
-  Platform,
-  AppState,
-} from 'react-native';
+import { StyleSheet, Platform, AppState } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -24,16 +18,15 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { refreshScheduledReminders } from '../src/services/notifications';
 import { useURL } from 'expo-linking';
-import { COLORS } from '../src/constants/theme';
-import { getUserData, updateUserData } from '../src/services/storage';
+import { updateUserData } from '../src/services/storage';
 import { ToastProvider } from '../src/components/Toast';
 import { PremiumProvider } from '../src/context/PremiumContext';
 import { ShareProvider } from '../src/context/ShareContext';
 import { initializePurchases } from '../src/services/purchases';
-import { WelcomeScreen } from '../src/components/WelcomeScreen';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import { trackEvent } from '../src/services/analytics';
 import { allowAds, preloadInterstitial } from '../src/services/ads';
+import { C } from '../src/theme/colors';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -58,9 +51,7 @@ export default function RootLayout() {
 
   const [bootChecked, setBootChecked] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean | null>(null);
-  const [showWelcome, setShowWelcome] = useState(true);
   const [showSplash, setShowSplash] = useState(true);
-  const [splashFadingOut, setSplashFadingOut] = useState(false);
   // Android has no ATT prompt, so it is answered by definition.
   const [trackingResolved, setTrackingResolved] = useState(
     Platform.OS !== 'ios'
@@ -84,6 +75,8 @@ export default function RootLayout() {
     })();
   }, []);
 
+  // ATT waits until onboarding is done (Graysmith Labs rule since Drift 1.18.0),
+  // so a new install meets the app before any system prompt.
   // iOS only presents the ATT prompt while the app is in the active state.
   // Asking during launch, with the splash still up, makes the system drop the
   // request silently, which is why App Review could not find the prompt. Wait
@@ -92,26 +85,29 @@ export default function RootLayout() {
   useEffect(() => {
     if (trackingResolved) return;
     if (!fontsLoaded || !bootChecked || showSplash) return;
+    if (needsOnboarding !== false) return;
 
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const request = async () => {
+      let granted = false;
       try {
-        await requestTrackingPermissionsAsync();
+        const { status } = await requestTrackingPermissionsAsync();
+        granted = status === 'granted';
       } catch {
         // A refusal still counts as answered; ads stay non personalized.
       }
       if (cancelled) return;
       setTrackingResolved(true);
-      allowAds();
+      allowAds(granted);
       preloadInterstitial();
     };
 
     // A short beat after the splash tears down, so the window is key before the
     // system alert is presented.
     const schedule = () => {
-      timer = setTimeout(request, 400);
+      timer = setTimeout(request, 1200);
     };
 
     if (AppState.currentState === 'active') {
@@ -134,13 +130,7 @@ export default function RootLayout() {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [fontsLoaded, bootChecked, showSplash, trackingResolved]);
-
-  useEffect(() => {
-    if (fontsLoaded && bootChecked) {
-      SplashScreen.hideAsync().catch(() => {});
-    }
-  }, [fontsLoaded, bootChecked]);
+  }, [fontsLoaded, bootChecked, showSplash, trackingResolved, needsOnboarding]);
 
   useEffect(() => {
     if (!bootChecked) return;
@@ -171,33 +161,21 @@ export default function RootLayout() {
     }
   }, [url, router]);
 
-  const handleWelcomeDismiss = useCallback(() => {
-    setShowWelcome(false);
-  }, []);
-
   const handleSplashComplete = useCallback(() => {
     setShowSplash(false);
-  }, []);
-
-  const handleSplashBeginFadeOut = useCallback(() => {
-    setSplashFadingOut(true);
   }, []);
 
   const completeOnboarding = useCallback(() => {
     setNeedsOnboarding(false);
   }, []);
 
+  // The native splash stays up until fonts and storage are ready; then the
+  // animated splash draws its first frame (identical to the native still) and
+  // hides the native one itself. The 1.2 "Good morning" gate is gone: Today
+  // greets you instead.
   if (!fontsLoaded || !bootChecked) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={COLORS.primaryGold} />
-      </View>
-    );
+    return null;
   }
-
-  const inOnboarding = segments[0] === 'onboarding';
-  const overlayVisible =
-    showWelcome && needsOnboarding === false && !inOnboarding;
 
   return (
     <GestureHandlerRootView style={styles.flex}>
@@ -206,7 +184,7 @@ export default function RootLayout() {
           <ToastProvider>
             <ShareProvider>
               <OnboardingFlowContext.Provider value={{ completeOnboarding }}>
-              <Stack screenOptions={{ headerShown: false }}>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: C.bg0 } }}>
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen
                   name="onboarding"
@@ -229,18 +207,7 @@ export default function RootLayout() {
                   }}
                 />
               </Stack>
-              {overlayVisible ? (
-                <WelcomeScreen
-                  onDismiss={handleWelcomeDismiss}
-                  startAnimations={!showSplash || splashFadingOut}
-                />
-              ) : null}
-              {showSplash ? (
-                <AnimatedSplash
-                  onComplete={handleSplashComplete}
-                  onBeginFadeOut={handleSplashBeginFadeOut}
-                />
-              ) : null}
+              {showSplash ? <AnimatedSplash onComplete={handleSplashComplete} /> : null}
               </OnboardingFlowContext.Provider>
             </ShareProvider>
           </ToastProvider>
@@ -251,11 +218,5 @@ export default function RootLayout() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  loading: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.cream,
-  },
+  flex: { flex: 1, backgroundColor: C.bg0 },
 });

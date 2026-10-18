@@ -1,14 +1,14 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.2.0",
-    "copyright": "2026 SayBright",
+    "version": "1.3.0",
+    "copyright": "2026 Graysmith Labs LLC",
     "release": {
       "automaticRelease": true
     },
     "info": {
       "en-US": {
-        "description": "Daily affirmations for confidence, gratitude and self love, one calm card at a time.\n\nEvery morning SayBright greets you with an affirmation from the topics you care about most. Swipe through beautiful cards, save your favorites and come back tomorrow for a fresh one.\n\nDAILY AFFIRMATIONS FOR EVERY PART OF LIFE\nOver 340 carefully written affirmations across 10 categories: Confidence, Gratitude, Morning Energy, Self Love, Career Growth, Relationships, Health and Body, Wealth and Abundance, Calm and Anxiety Relief, and Creativity.\n\nSAY IT IN YOUR OWN VOICE\nRecord any affirmation in your own voice and play it back whenever you need it. Hearing your own words is a simple way to make positive self talk stick.\n\nWRITE YOUR OWN\nWrite personal affirmations in My Affirmations and keep the words that move you most next to the ones we wrote for you.\n\nBUILD YOUR STREAK\nOpen SayBright each day to grow your streak. Celebrate milestones at 7, 14, 30, 60, 90, 180 and 365 days.\n\nSHARE CARDS\nTurn any affirmation into a beautiful quote card for Instagram Stories, iMessage or anywhere you want to spread some positivity.\n\nHOME SCREEN AND LOCK SCREEN WIDGETS\nKeep an affirmation in view all day with widgets that refresh throughout the day.\n\nDAILY REMINDERS\nPick your time and SayBright sends a gentle daily reminder, so your practice becomes a habit.\n\nFREE TO START\nThe free version includes four categories (Confidence, Gratitude, Morning Energy and Self Love), streaks, share cards, daily reminders and your own written affirmations.\n\nSAYBRIGHT PREMIUM\nPremium unlocks unlimited daily affirmations, all 10 categories and every affirmation, home screen and lock screen widgets, recording affirmations in your own voice, watermark free share cards and an ad free experience.\n\nPremium is offered as a monthly or an annual subscription. Each plan starts with a 7 day free trial for eligible new subscribers. Prices are shown in the app before you subscribe.\n\nPayment is charged to your Apple ID account at confirmation of purchase. If you start a free trial, payment is charged when the trial ends unless you cancel at least 24 hours before it ends. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period, and your account is charged for renewal within 24 hours before the current period ends. You can manage and cancel your subscriptions in your App Store account settings after purchase. Any unused portion of a free trial is forfeited when you purchase a subscription.\n\nPrivacy Policy: https://ramseysmith.github.io/SayBright/privacy.html\nTerms of Use: https://ramseysmith.github.io/SayBright/terms.html",
+        "description": "Five bright affirmations every morning, picked for what you want more of. Say them out loud, save the ones that land, and build a daily habit that keeps you on your own side.\n\nSAY IT OUT LOUD\nSayBright starts with your first affirmation in under a minute. Pick what you want more of, read it, say it, and feel the difference a kind sentence makes.\n\nFIVE A DAY, FREE\nEvery day brings five fresh affirmations from the topics you chose, the same five your morning reminder points to. Swipe through them, save your favorites, and come back tomorrow for five more.\n\nTEN CATEGORIES, 340 AFFIRMATIONS\nConfidence, Gratitude, Morning Energy, Self Love, Career Growth, Relationships, Health and Body, Wealth and Abundance, Calm and Anxiety Relief, and Creativity. Confidence is fully open on the free plan, and every other category lets you read a preview.\n\nHEAR IT IN YOUR OWN VOICE\nRecord any affirmation in your own voice and play it back whenever you need it. Hearing your own words is a simple way to make positive self talk stick.\n\nWRITE YOUR OWN\nKeep personal affirmations in My Affirmations, right next to the ones we wrote for you.\n\nBUILD YOUR STREAK\nOpen SayBright each day to grow your streak, and celebrate milestones at 7, 14, 30, 60, 90, 180 and 365 days.\n\nSHARE CARDS\nTurn any affirmation into a beautiful quote card for Stories, iMessage or anywhere you want to spread some light.\n\nHOME SCREEN AND LOCK SCREEN WIDGETS\nKeep an affirmation in view all day with widgets that refresh throughout the day.\n\nDAILY REMINDERS\nPick a time and SayBright sends one gentle reminder a day, so your practice becomes a habit.\n\nFREE TO START\nThe free plan includes five affirmations a day, the full Confidence category, previews of every other category, streaks, share cards, reminders and your own written affirmations.\n\nSAYBRIGHT PREMIUM\nPremium opens all 10 categories and every affirmation with no daily limit, home screen and lock screen widgets, recordings in your own voice, watermark free share cards and no ads.\n\nPremium is offered as a monthly or a yearly subscription. Each plan starts with a 7 day free trial for eligible new subscribers. Prices are shown in the app before you subscribe.\n\nPayment is charged to your Apple ID account at confirmation of purchase. If you start a free trial, payment is charged when the trial ends unless you cancel at least 24 hours before it ends. Subscriptions renew automatically unless canceled at least 24 hours before the end of the current period, and your account is charged for renewal within 24 hours before the current period ends. You can manage and cancel your subscriptions in your App Store account settings after purchase. Any unused portion of a free trial is forfeited when you purchase a subscription.\n\nPrivacy Policy: https://graysmithlabs.com/apps/saybright-privacy.html\nTerms of Use: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/",
         "keywords": [
           "motivation",
           "mindset",
@@ -24,38 +24,23 @@
           "voice",
           "mantra"
         ],
-        "marketingUrl": "https://ramseysmith.github.io/SayBright/index.html",
-        "promoText": "Try Premium free for 7 days. Every plan starts with a free week for eligible new subscribers: all 10 categories, widgets and affirmations recorded in your own voice.",
-        "supportUrl": "https://ramseysmith.github.io/SayBright/support.html",
+        "marketingUrl": "https://graysmithlabs.com/apps/saybright.html",
+        "promoText": "New look, and now five free affirmations a day. Premium starts with a free week for eligible new subscribers: every category, no limits and no ads.",
+        "supportUrl": "https://graysmithlabs.com/apps/saybright.html#support",
         "title": "SayBright: Daily Affirmations",
         "subtitle": "Positive Thinking & Self Love",
-        "privacyPolicyUrl": "https://ramseysmith.github.io/SayBright/privacy.html",
+        "privacyPolicyUrl": "https://graysmithlabs.com/apps/saybright-privacy.html",
         "screenshots": {
-          "APP_IPHONE_61": [
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.35.48.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.35.52.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.35.54.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.35.58.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.36.02.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.42.37.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.42.42.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.42.45.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_61/Simulator Screenshot - iPhone 17 - 2026-08-16 at 06.42.52.png"
-          ],
           "APP_IPHONE_67": [
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.49.48.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.49.51.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.49.54.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.49.56.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.49.59.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.50.07.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.50.11.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.50.16.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.50.20.png",
-            "store/apple/screenshot/en-US/APP_IPHONE_67/Simulator Screenshot - iPhone 17 Pro Max - 2026-08-16 at 09.50.23.png"
+            "store/screenshots/6.9-inch/1-today.png",
+            "store/screenshots/6.9-inch/2-browse.png",
+            "store/screenshots/6.9-inch/3-first.png",
+            "store/screenshots/6.9-inch/4-evening.png",
+            "store/screenshots/6.9-inch/5-streak.png",
+            "store/screenshots/6.9-inch/6-premium.png"
           ]
         },
-        "releaseNotes": "Premium now starts with a free week for new subscribers, and SayBright can remind you two days before the free week ends so nothing catches you by surprise.\n\nThe Premium screen is cleaner and easier to read.\n\nThank you for saying something kind to yourself today."
+        "releaseNotes": "SayBright has a brand new look, from the icon to every screen.\n\nFive free affirmations a day instead of one, and the whole Confidence category is now open to everyone. Every other category has a preview you can read before deciding on Premium.\n\nA new start for first time users: pick what you want more of and say your first affirmation right away.\n\nFewer interruptions: no more welcome screen on every launch, and full screen ads are limited to one per visit and never before you finish your daily five.\n\nThank you for saying something kind to yourself today."
       }
     },
     "categories": [
@@ -97,7 +82,7 @@
       "email": "smith.s.ramsey@gmail.com",
       "phone": "7208226609",
       "demoRequired": false,
-      "notes": "No login is needed. To reach the paywall: open the app, complete onboarding, then on Home tap the Go Premium pill at the top, or open the Settings tab and tap SayBright Premium. Both plans start with a 7 day free trial for eligible new Apple IDs."
+      "notes": "No login is needed. To reach the paywall as a new user: complete onboarding (Get started, Continue, I said it, Continue, Not now on the reminder step) and the last onboarding step is the Premium screen; tap Not now to close it. In the app: open the Browse tab and tap any category with a lock (for example Career Growth), then tap the gold Open button under the preview, or open the Settings tab and tap SayBright Premium. Both plans start with a 7 day free trial for eligible new Apple IDs. Ads are AdMob; the tracking prompt appears after onboarding."
     }
   }
 }

@@ -1,223 +1,152 @@
 import { useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Pressable,
-  TextInput,
-  ScrollView,
-} from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { CATEGORIES, AFFIRMATIONS, Category } from '../../src/data/affirmations';
-import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
-import { hexWithAlpha } from '../../src/utils/affirmations';
+import { AFFIRMATIONS, CATEGORIES, Category } from '../../src/data/affirmations';
+import { FONTS } from '../../src/constants/theme';
+import { C, CATEGORY_PALETTES, MAX_CONTENT_WIDTH, RADIUS } from '../../src/theme/colors';
 import { usePremium } from '../../src/context/PremiumContext';
+import { isCategoryOpen } from '../../src/lib/free-tier';
+import CategoryIcon from '../../src/components/art/CategoryIcon';
+import Tap from '../../src/components/Tap';
 
+/**
+ * Every category, for everyone (1.3.0). Confidence is fully open on the free
+ * tier; the others open to a short preview that ends on the paywall.
+ */
 export default function BrowseScreen() {
   const [query, setQuery] = useState('');
   const router = useRouter();
   const { isPremium } = usePremium();
+  const { width } = useWindowDimensions();
+  const contentWidth = Math.min(width, MAX_CONTENT_WIDTH);
+  const columns = contentWidth > 520 ? 3 : 2;
+  const gap = 12;
+  const tileWidth = (contentWidth - 40 - gap * (columns - 1)) / columns;
 
-  const filteredCategories = useMemo(() => {
-    if (!query.trim()) return CATEGORIES;
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const nameMatch = CATEGORIES.filter((c) =>
-      c.name.toLowerCase().includes(q)
-    );
-    const textMatchIds = new Set(
-      AFFIRMATIONS.filter((a) => a.text.toLowerCase().includes(q)).map(
-        (a) => a.categoryId
-      )
-    );
-    const merged = new Map<string, Category>();
-    for (const c of nameMatch) merged.set(c.id, c);
-    for (const c of CATEGORIES) {
-      if (textMatchIds.has(c.id)) merged.set(c.id, c);
-    }
-    return Array.from(merged.values());
+    if (!q) return CATEGORIES;
+    const ids = new Set(AFFIRMATIONS.filter((a) => a.text.toLowerCase().includes(q)).map((a) => a.categoryId));
+    return CATEGORIES.filter((c) => c.name.toLowerCase().includes(q) || ids.has(c.id));
   }, [query]);
 
-  const handlePress = (cat: Category) => {
-    Haptics.selectionAsync();
+  const counts = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const a of AFFIRMATIONS) out[a.categoryId] = (out[a.categoryId] ?? 0) + 1;
+    return out;
+  }, []);
+
+  const open = (cat: Category) => {
+    Haptics.selectionAsync().catch(() => {});
     router.push({ pathname: '/category/[id]', params: { id: cat.id } });
   };
 
-  const countFor = (id: string) =>
-    AFFIRMATIONS.filter((a) => a.categoryId === id).length;
-
-  if (!isPremium) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.gateWrap}>
-          <Text style={styles.gateEmoji}>🔍</Text>
-          <Text style={styles.gateTitle}>Explore All Categories</Text>
-          <Text style={styles.gateSubtitle}>
-            Browse 340+ affirmations across 10 categories with SayBright Premium.
+  return (
+    <View style={styles.root}>
+      <LinearGradient colors={[C.bg1, C.bg0]} locations={[0, 0.4]} style={StyleSheet.absoluteFill} />
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={[styles.column, { width: contentWidth }]}>
+          <Text style={styles.title}>Browse</Text>
+          <Text style={styles.sub}>
+            {isPremium ? `${AFFIRMATIONS.length} affirmations in ${CATEGORIES.length} categories` : 'Confidence is free. Peek inside the rest.'}
           </Text>
-          <Pressable
-            onPress={() => router.push('/paywall?source=browse_gate')}
-            style={styles.gateCta}
-          >
-            <Text style={styles.gateCtaText}>Unlock with Premium</Text>
-          </Pressable>
+          <View style={styles.search}>
+            <Ionicons name="search" size={18} color={C.textMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Search categories or words"
+              placeholderTextColor={C.textMuted}
+              style={styles.searchInput}
+              returnKeyType="search"
+              accessibilityLabel="Search"
+            />
+          </View>
+          <ScrollView contentContainerStyle={styles.gridContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={[styles.grid, { gap }]}>
+              {filtered.map((cat) => {
+                const pal = CATEGORY_PALETTES[cat.id] ?? CATEGORY_PALETTES.confidence;
+                const unlocked = isCategoryOpen(cat.id, isPremium);
+                return (
+                  <Tap
+                    key={cat.id}
+                    onPress={() => open(cat)}
+                    style={[styles.tile, { width: tileWidth }]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${cat.name}, ${counts[cat.id] ?? 0} affirmations${unlocked ? '' : ', preview'}`}
+                  >
+                    <LinearGradient colors={[pal.from, pal.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                    <View style={styles.tileTop}>
+                      <View style={styles.glyph}>
+                        <CategoryIcon name={cat.id} size={30} color={pal.ink} />
+                      </View>
+                      {!unlocked ? (
+                        <View style={styles.lock}>
+                          <Ionicons name="lock-closed" size={11} color={C.onGold} />
+                        </View>
+                      ) : !isPremium ? (
+                        <View style={styles.freeTag}>
+                          <Text style={styles.freeText}>Free</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <View>
+                      <Text style={[styles.name, { color: pal.ink }]} numberOfLines={2}>
+                        {cat.name}
+                      </Text>
+                      <Text style={[styles.count, { color: pal.ink }]}>{counts[cat.id] ?? 0} affirmations</Text>
+                    </View>
+                  </Tap>
+                );
+              })}
+            </View>
+            {filtered.length === 0 ? <Text style={styles.empty}>No matches. Try a different word.</Text> : null}
+          </ScrollView>
         </View>
       </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <Text style={styles.header}>Browse</Text>
-      <View style={styles.searchWrap}>
-        <Ionicons
-          name="search"
-          size={18}
-          color={COLORS.textSecondary}
-          style={styles.searchIcon}
-        />
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search categories or affirmations"
-          placeholderTextColor={COLORS.textSecondary}
-          style={styles.searchInput}
-          returnKeyType="search"
-        />
-      </View>
-      <ScrollView
-        contentContainerStyle={styles.gridContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.grid}>
-          {filteredCategories.map((cat) => (
-            <Pressable
-              key={cat.id}
-              onPress={() => handlePress(cat)}
-              style={[
-                styles.card,
-                { backgroundColor: hexWithAlpha(cat.color, 0.15) },
-              ]}
-            >
-              <Text style={styles.emoji}>{cat.icon}</Text>
-              <Text style={styles.name}>{cat.name}</Text>
-              <Text style={styles.count}>{countFor(cat.id)} affirmations</Text>
-            </Pressable>
-          ))}
-          {filteredCategories.length === 0 ? (
-            <Text style={styles.emptyResult}>No matches found.</Text>
-          ) : null}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.cream },
-  header: {
-    fontFamily: FONTS.displayBold,
-    fontSize: FONT_SIZES.title,
-    color: COLORS.textPrimary,
-    paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  searchWrap: {
-    marginHorizontal: SPACING.lg,
-    backgroundColor: COLORS.white,
+  root: { flex: 1, backgroundColor: C.bg0 },
+  safe: { flex: 1, alignItems: 'center' },
+  column: { flex: 1, paddingHorizontal: 20 },
+  title: { fontFamily: FONTS.displayBold, fontSize: 30, color: C.text, marginTop: 8 },
+  sub: { fontFamily: FONTS.bodyRegular, fontSize: 15, color: C.textSecondary, marginTop: 2 },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 46,
+    marginTop: 16,
+    paddingHorizontal: 14,
     borderRadius: 14,
-    paddingHorizontal: SPACING.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 44,
+    backgroundColor: C.surfaceStrong,
+    borderWidth: 1,
+    borderColor: C.border,
   },
-  searchIcon: { marginRight: SPACING.sm },
-  searchInput: {
-    flex: 1,
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textPrimary,
-  },
-  gridContent: {
-    padding: SPACING.lg,
-    paddingBottom: SPACING.xl,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    rowGap: SPACING.md,
-  },
-  card: {
-    width: '48%',
-    aspectRatio: 1,
+  searchInput: { flex: 1, fontFamily: FONTS.bodyRegular, fontSize: 16, color: C.text },
+  gridContent: { paddingTop: 16, paddingBottom: 32 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  tile: { aspectRatio: 1, borderRadius: RADIUS.md, padding: 14, overflow: 'hidden', justifyContent: 'space-between' },
+  tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  glyph: {
+    width: 50,
+    height: 50,
     borderRadius: 16,
-    padding: SPACING.md,
+    backgroundColor: C.surface,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
-  emoji: { fontSize: 32, marginBottom: SPACING.sm },
-  name: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-  },
-  count: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.caption,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  emptyResult: {
-    width: '100%',
-    textAlign: 'center',
-    fontFamily: FONTS.bodyRegular,
-    color: COLORS.textSecondary,
-    marginTop: SPACING.xl,
-  },
-  gateWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: SPACING.lg,
-  },
-  gateEmoji: {
-    fontSize: 64,
-    marginBottom: SPACING.lg,
-  },
-  gateTitle: {
-    fontFamily: FONTS.displayBold,
-    fontSize: 28,
-    color: COLORS.textPrimary,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
-  },
-  gateSubtitle: {
-    fontFamily: FONTS.bodyRegular,
-    fontSize: FONT_SIZES.body,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    maxWidth: 280,
-    lineHeight: 22,
-  },
-  gateCta: {
-    backgroundColor: COLORS.primaryGold,
-    marginHorizontal: SPACING.xl + 8,
-    marginTop: SPACING.lg,
-    alignSelf: 'stretch',
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  gateCtaText: {
-    fontFamily: FONTS.bodyBold,
-    fontSize: FONT_SIZES.body,
-    color: COLORS.white,
-  },
+  lock: { width: 22, height: 22, borderRadius: 11, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  freeTag: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: C.surfaceStrong },
+  freeText: { fontFamily: FONTS.bodyBold, fontSize: 11, color: C.text },
+  name: { fontFamily: FONTS.bodyBold, fontSize: 16 },
+  count: { fontFamily: FONTS.bodyRegular, fontSize: 12, marginTop: 2, opacity: 0.85 },
+  empty: { fontFamily: FONTS.bodyRegular, fontSize: 15, color: C.textSecondary, textAlign: 'center', marginTop: 32 },
 });

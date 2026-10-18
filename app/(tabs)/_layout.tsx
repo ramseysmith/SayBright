@@ -8,7 +8,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
-import { COLORS, FONTS } from '../../src/constants/theme';
+import { FONTS } from '../../src/constants/theme';
+import { C } from '../../src/theme/colors';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -54,12 +55,12 @@ export default function TabsLayout() {
       )}
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLORS.primaryGold,
-        tabBarInactiveTintColor: COLORS.textSecondary,
+        tabBarActiveTintColor: C.accent,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarStyle: {
-          backgroundColor: COLORS.cream,
-          borderTopColor: 'rgba(0,0,0,0.05)',
-          shadowColor: '#000',
+          backgroundColor: C.bg0,
+          borderTopColor: C.border,
+          shadowColor: C.shadow,
           shadowOpacity: 0.06,
           shadowOffset: { width: 0, height: -2 },
           shadowRadius: 6,

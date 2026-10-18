@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -74,8 +75,14 @@ export function getRecordingUri(affirmationId: string): string {
 }
 
 export async function hasRecording(affirmationId: string): Promise<boolean> {
-  const info = await FileSystem.getInfoAsync(getRecordingUri(affirmationId));
-  return info.exists;
+  // No file system on web (store screenshot export only)
+  if (Platform.OS === 'web') return false;
+  try {
+    const info = await FileSystem.getInfoAsync(getRecordingUri(affirmationId));
+    return info.exists;
+  } catch {
+    return false;
+  }
 }
 
 export async function getRecordedAffirmationIds(): Promise<string[]> {

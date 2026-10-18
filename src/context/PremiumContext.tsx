@@ -6,11 +6,15 @@ import {
   useEffect,
   useState,
 } from 'react';
+import { Platform } from 'react-native';
 import { checkPremiumStatus } from '../services/purchases';
 import {
   getCachedPremiumStatus,
   setCachedPremiumStatus,
 } from '../services/storage';
+
+/** Web export only: lets store screenshots show the Premium state. Never set in a build. */
+const DEMO_PREMIUM = Platform.OS === 'web' && process.env.EXPO_PUBLIC_DEMO_PREMIUM === '1';
 
 interface PremiumContextValue {
   isPremium: boolean;
@@ -31,6 +35,11 @@ export function PremiumProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshPremiumStatus = useCallback(async () => {
+    if (DEMO_PREMIUM) {
+      setIsPremium(true);
+      setIsLoading(false);
+      return;
+    }
     try {
       const live = await checkPremiumStatus();
       if (__DEV__) console.log('[PremiumContext] refreshPremiumStatus live:', live);
