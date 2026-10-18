@@ -103,6 +103,10 @@ export function lintScreenshots(json, root, appJson) {
           problems.push(`${locale} ${slot}: ${f} is ${size[0]} x ${size[1]}, the slot takes ${sizes.map((s) => s.join(' x ')).join(' or ')}`);
       }
     }
+    // EAS Metadata only replaces the sizes listed, so a missing size keeps whatever
+    // old set App Store Connect has (SayBright 1.3.0 shipped its August medium set).
+    if (Object.keys(shots).length && !shots.APP_IPHONE_61)
+      problems.push(`${locale}: lists no APP_IPHONE_61 (medium iPhone, 1206 x 2622) screenshots, so App Store Connect keeps the old medium set; the screenshot kit makes them`);
     if (appJson?.expo?.ios?.supportsTablet && Object.keys(shots).length && !shots.APP_IPAD_PRO_3GEN_129)
       problems.push(`${locale}: the app supports iPad but lists no APP_IPAD_PRO_3GEN_129 screenshots (bun run screenshots makes them)`);
   }

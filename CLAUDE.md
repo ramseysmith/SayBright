@@ -84,7 +84,8 @@ reference). Build on it; do not revert to the old gold and emoji look.
 * One paywall: src/components/paywall/PaywallView.tsx (route /paywall and the last
   onboarding step, embedded with "Not now"). Headlines per source.
 * Screenshots: `npm run screenshots` (scripts/screenshots, scenes.json) writes
-  store/screenshots/6.9-inch and store/paywall-review.png. iPhone only. The web
+  store/screenshots/6.9-inch and 6.1-inch (both are required; EAS Metadata
+  only replaces listed sizes) and store/paywall-review.png. iPhone only. The web
   export uses web-stubs/ through metro.config.js for native only modules.
 
 ## Scope
