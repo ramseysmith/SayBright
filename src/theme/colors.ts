@@ -30,6 +30,8 @@ export const C = {
   surfaceStrong: 'rgba(255, 255, 255, 0.92)',
   surfaceOnSky: 'rgba(255, 255, 255, 0.2)',
   surfaceOnSkyStrong: 'rgba(255, 255, 255, 0.32)',
+  /** Card glass on the evening and night skies, dark enough for white text */
+  surfaceOnDusk: 'rgba(42, 30, 69, 0.42)',
   border: 'rgba(42, 30, 69, 0.08)',
   borderStrong: 'rgba(42, 30, 69, 0.18)',
   borderOnSky: 'rgba(255, 255, 255, 0.45)',

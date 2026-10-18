@@ -288,7 +288,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable onPress={handleTimeRowPress} style={styles.row}>
             <View style={styles.rowMain}>
-              <Text style={styles.rowTitle}>Reminder Time</Text>
+              <Text style={styles.rowTitle}>Reminder time</Text>
               <Text style={styles.rowSubtitle}>
                 {formatTimeDisplay(reminderTime)}
               </Text>
@@ -324,8 +324,8 @@ export default function SettingsScreen() {
             <View style={styles.rowMain}>
               <Text style={styles.rowTitle}>
                 {isPremium
-                  ? 'Add Home Screen Widget'
-                  : 'Home Screen Widgets'}
+                  ? 'Add a home screen widget'
+                  : 'Home screen widgets'}
               </Text>
               <Text style={styles.rowSubtitle}>
                 {isPremium
@@ -350,7 +350,7 @@ export default function SettingsScreen() {
           <View style={styles.divider} />
           <Pressable onPress={onRecordingsPress} style={styles.row}>
             <View style={styles.rowMain}>
-              <Text style={styles.rowTitle}>My Recordings</Text>
+              <Text style={styles.rowTitle}>My recordings</Text>
               <Text style={styles.rowSubtitle}>
                 {!isPremium
                   ? 'Available with Premium.'
@@ -406,7 +406,7 @@ export default function SettingsScreen() {
               style={styles.rowIcon}
             />
             <View style={styles.rowMain}>
-              <Text style={styles.rowTitle}>Restore Purchases</Text>
+              <Text style={styles.rowTitle}>Restore purchases</Text>
             </View>
             {restoring ? (
               <ActivityIndicator color={COLORS.textSecondary} />
@@ -600,7 +600,7 @@ function RecordingsListModal({
       <SafeAreaView style={styles.modalContainer} edges={['top']}>
         <View style={styles.modalHeader}>
           <View style={{ width: 60 }} />
-          <Text style={styles.modalTitle}>My Recordings</Text>
+          <Text style={styles.modalTitle}>My recordings</Text>
           <Pressable onPress={close} hitSlop={12}>
             <Text style={styles.modalCancel}>Done</Text>
           </Pressable>

@@ -75,10 +75,11 @@ export default function TodayScreen() {
   const sky = SKIES[period];
   const textColor = sky.ink;
   const subtleTextColor = sky.inkSecondary;
-  const { width: winWidth } = useWindowDimensions();
+  const { width: winWidth, height: winHeight } = useWindowDimensions();
   const contentWidth = Math.min(winWidth, MAX_CONTENT_WIDTH);
   const swipeThreshold = contentWidth * 0.22;
   const finishedRecorded = useRef(false);
+  const [reminderLabel, setReminderLabel] = useState<string | null>(null);
 
   const translateX = useSharedValue(0);
   const opacity = useSharedValue(0);
@@ -114,6 +115,12 @@ export default function TodayScreen() {
       setPool(resolvedPool);
       setCurrentIndex(0);
       setFavorites(data.favorites);
+      if (data.preferences.reminderEnabled) {
+        const [hh, mm] = data.preferences.reminderTime.split(':').map(Number);
+        const d = new Date();
+        d.setHours(hh || 8, mm || 0, 0, 0);
+        setReminderLabel(d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));
+      }
       setLoading(false);
       opacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
       scale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
@@ -433,7 +440,7 @@ export default function TodayScreen() {
           </View>
 
           <View style={[styles.hero, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
-            <SunriseHero width={winWidth} period={period} height={Math.min(170, winWidth * 0.4)} />
+            <SunriseHero width={winWidth} period={period} height={Math.min(240, Math.max(140, winHeight * 0.22))} />
           </View>
 
           <View style={styles.cardWrapper}>
@@ -444,6 +451,7 @@ export default function TodayScreen() {
                 <Animated.View style={[styles.card, cardStyleStatic, cardStyle]}>
                   {isPaywallCard ? (
                     <EndOfDayCard
+                      reminderTime={reminderLabel}
                       textColor={textColor}
                       subtleTextColor={subtleTextColor}
                       onSeePlans={() => router.push('/paywall?source=daily_limit')}
@@ -534,13 +542,24 @@ export default function TodayScreen() {
 }
 
 /** Closes the free daily set: the Premium entry is part of the layout. */
-function EndOfDayCard({ textColor, subtleTextColor, onSeePlans }: { textColor: string; subtleTextColor: string; onSeePlans: () => void }) {
+function EndOfDayCard({
+  reminderTime,
+  textColor,
+  subtleTextColor,
+  onSeePlans,
+}: {
+  reminderTime: string | null;
+  textColor: string;
+  subtleTextColor: string;
+  onSeePlans: () => void;
+}) {
   return (
     <View style={styles.endInner}>
       <BrightMark size={84} />
       <Text style={[styles.endTitle, { color: textColor }]}>{"That's your five for today"}</Text>
       <Text style={[styles.endBody, { color: subtleTextColor }]}>
-        Five new ones arrive tomorrow. Or keep going now with every category and no limit.
+        {reminderTime ? `Five new ones tomorrow at ${reminderTime}.` : 'Five new ones arrive tomorrow.'} Or keep going now with every
+        category and no limit.
       </Text>
       <Tap onPress={onSeePlans} style={styles.endCta} pressedStyle={styles.endCtaPressed} accessibilityRole="button">
         <Ionicons name="sparkles" size={16} color={C.onGold} />
@@ -563,7 +582,7 @@ const styles = StyleSheet.create({
   chipNight: { backgroundColor: C.surfaceOnSky, borderColor: C.surfaceOnSkyStrong },
   streakText: { fontFamily: FONTS.bodyBold, fontSize: 15 },
   hero: { alignItems: 'center', marginTop: 2 },
-  cardWrapper: { flex: 1, justifyContent: 'center', paddingBottom: 12 },
+  cardWrapper: { flex: 1, justifyContent: 'flex-start', paddingTop: 20, paddingBottom: 12 },
   card: { borderRadius: RADIUS.lg, padding: 26, minHeight: 300, justifyContent: 'space-between', borderWidth: 1 },
   cardDay: {
     backgroundColor: C.surface,
@@ -574,7 +593,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     elevation: 3,
   },
-  cardNight: { backgroundColor: C.surfaceOnSky, borderColor: C.surfaceOnSkyStrong },
+  cardNight: { backgroundColor: C.surfaceOnDusk, borderColor: C.surfaceOnSkyStrong },
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 18 },
   categoryName: { fontFamily: FONTS.bodyMedium, fontSize: 14 },
   affirmation: { fontFamily: FONTS.displayBold, fontSize: 27, lineHeight: 36 },

@@ -29,6 +29,8 @@ import {
 } from '../src/services/storage';
 import { useShare } from '../src/context/ShareContext';
 import { trackEvent } from '../src/services/analytics';
+import CategoryIcon from '../src/components/art/CategoryIcon';
+import { C } from '../src/theme/colors';
 
 export default function MyAffirmationsScreen() {
   const router = useRouter();
@@ -187,7 +189,9 @@ export default function MyAffirmationsScreen() {
 
         {loaded && items.length === 0 ? (
           <View style={styles.empty}>
-            <Text style={styles.emptyEmoji}>✍️</Text>
+            <View style={styles.emptyArt}>
+              <CategoryIcon name="creativity" size={40} color={C.accent} />
+            </View>
             <Text style={styles.emptyTitle}>Write your own</Text>
             <Text style={styles.emptySubtitle}>
               The words that move you most are often your own. Write an
@@ -281,7 +285,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.lg,
     paddingVertical: SPACING.md,
   },
-  rowEditing: { backgroundColor: '#FFF1DC' },
+  rowEditing: { backgroundColor: C.bg1 },
   rowText: {
     flex: 1,
     marginRight: SPACING.md,
@@ -314,7 +318,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.xl,
     paddingBottom: SPACING.xxl,
   },
-  emptyEmoji: { fontSize: 64, marginBottom: SPACING.md },
+  emptyArt: {
+    width: 88,
+    height: 88,
+    borderRadius: 28,
+    backgroundColor: C.accentDim,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
+  },
   emptyTitle: {
     fontFamily: FONTS.displayBold,
     fontSize: FONT_SIZES.title,

@@ -2,6 +2,7 @@ import { forwardRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS } from '../constants/theme';
+import { C } from '../theme/colors';
 import { Affirmation } from '../data/affirmations';
 import { getCategoryById } from '../utils/affirmations';
 import { TimeGradient } from '../utils/time';
@@ -24,7 +25,7 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
     : undefined;
   const text = affirmation?.text ?? '';
   const isLight = gradient.statusBar === 'dark';
-  const primaryText = isLight ? '#1A1A2E' : COLORS.white;
+  const primaryText = isLight ? C.text : COLORS.white;
   const subtleText = isLight
     ? 'rgba(26, 26, 46, 0.65)'
     : 'rgba(255, 255, 255, 0.85)';

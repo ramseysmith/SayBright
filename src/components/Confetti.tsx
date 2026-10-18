@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
+import { C } from '../theme/colors';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -10,14 +11,7 @@ import Animated, {
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const COLORS = [
-  '#F5A623',
-  '#FF6B6B',
-  '#B8A9E8',
-  '#4CAF50',
-  '#FFD700',
-  '#2196F3',
-];
+const COLORS = [C.gold, C.dawnMid, C.accentLight, C.success, C.goldLight, C.accent];
 
 interface Particle {
   key: number;

@@ -110,27 +110,33 @@ export default function PaywallView({ source, onDone, embedded = false }: { sour
                   </View>
                 ) : null}
 
-                <Tap
-                  onPress={c.handlePurchase}
-                  disabled={c.purchasing}
-                  style={[styles.cta, c.purchasing && styles.ctaBusy]}
-                  pressedStyle={styles.ctaPressed}
-                  accessibilityRole="button"
-                >
-                  {c.purchasing ? <ActivityIndicator color={C.onGold} /> : <Text style={styles.ctaText}>{c.ctaLabel}</Text>}
-                </Tap>
-                {c.trialTerms ? <Text style={styles.terms}>{c.trialTerms}</Text> : null}
-                {c.notice ? <Text style={styles.notice}>{c.notice}</Text> : null}
-
-                <Tap onPress={c.handleRestore} disabled={c.restoring} style={styles.restore} accessibilityRole="button">
-                  <Text style={styles.restoreText}>{c.restoring ? 'Restoring' : 'Restore purchases'}</Text>
-                </Tap>
               </>
             )}
 
             <LegalSection monthlyPrice={c.monthlyPrice} annualPrice={c.annualPrice} showAnnual={c.hasAnnual} showTrial={c.showTrial} />
           </View>
         </ScrollView>
+        {!c.loading && !c.error ? (
+          <SafeAreaView edges={['bottom']} style={styles.footer}>
+            <View style={styles.inner}>
+                      <Tap
+                        onPress={c.handlePurchase}
+                        disabled={c.purchasing}
+                        style={[styles.cta, c.purchasing && styles.ctaBusy]}
+                        pressedStyle={styles.ctaPressed}
+                        accessibilityRole="button"
+                      >
+                        {c.purchasing ? <ActivityIndicator color={C.onGold} /> : <Text style={styles.ctaText}>{c.ctaLabel}</Text>}
+                      </Tap>
+                      {c.trialTerms ? <Text style={styles.terms}>{c.trialTerms}</Text> : null}
+                      {c.notice ? <Text style={styles.notice}>{c.notice}</Text> : null}
+      
+                      <Tap onPress={c.handleRestore} disabled={c.restoring} style={styles.restore} accessibilityRole="button">
+                        <Text style={styles.restoreText}>{c.restoring ? 'Restoring' : 'Restore purchases'}</Text>
+                      </Tap>
+            </View>
+          </SafeAreaView>
+        ) : null}
       </SafeAreaView>
     </View>
   );
@@ -223,7 +229,8 @@ const styles = StyleSheet.create({
     backgroundColor: C.surfaceOnSkyStrong,
   },
   notNow: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: C.text },
-  scroll: { paddingHorizontal: 20, paddingBottom: 40 },
+  scroll: { paddingHorizontal: 20, paddingBottom: 24 },
+  footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4, backgroundColor: C.bg0, borderTopWidth: 1, borderTopColor: C.border },
   inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
   hero: { alignItems: 'center', marginTop: -8 },
   title: { fontFamily: FONTS.displayBold, fontSize: 30, lineHeight: 36, color: C.text, textAlign: 'center', marginTop: 2 },
@@ -285,7 +292,7 @@ const styles = StyleSheet.create({
   stepTitle: { fontFamily: FONTS.bodyBold, fontSize: 15, color: C.text },
   stepBody: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: C.textSecondary },
   cta: {
-    marginTop: 18,
+    marginTop: 4,
     height: 56,
     borderRadius: 28,
     backgroundColor: C.gold,
