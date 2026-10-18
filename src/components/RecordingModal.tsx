@@ -6,7 +6,6 @@ import {
   Text,
   View,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +29,7 @@ import {
   stopRecording,
 } from '../services/audio';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../constants/theme';
+import { C } from '../theme/colors';
 
 const MAX_DURATION_S = 30;
 
@@ -51,6 +51,8 @@ export function RecordingModal({
   onSaved,
 }: RecordingModalProps) {
   const [phase, setPhase] = useState<Phase>('idle');
+  /** Inline message instead of a system alert */
+  const [notice, setNotice] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [draftUri, setDraftUri] = useState<string | null>(null);
   const recordingRef = useRef<Audio.Recording | null>(null);
@@ -119,6 +121,7 @@ export function RecordingModal({
     if (!affirmationId) return;
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+      setNotice(null);
       const recording = await startRecording();
       recordingRef.current = recording;
       setPhase('recording');
@@ -133,11 +136,8 @@ export function RecordingModal({
           return next;
         });
       }, 1000);
-    } catch (e) {
-      Alert.alert(
-        'Microphone unavailable',
-        'Please allow microphone access in Settings to record affirmations.'
-      );
+    } catch {
+      setNotice('Allow microphone access for SayBright in the Settings app to record.');
     }
   };
 
@@ -158,7 +158,7 @@ export function RecordingModal({
       setPhase('review');
     } catch {
       reset();
-      Alert.alert('Recording failed', 'Please try again.');
+      setNotice('That recording did not save. Please try again.');
     }
   };
 
@@ -283,6 +283,7 @@ export function RecordingModal({
           )}
 
           <Text style={styles.timer}>{formatTime(seconds)}</Text>
+          {notice ? <Text style={styles.notice}>{notice}</Text> : null}
 
           <Waveform active={phase === 'recording' || phase === 'playing'} />
         </View>
@@ -343,6 +344,7 @@ function WaveformBar({ index, active }: { index: number; active: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  notice: { fontFamily: FONTS.bodyMedium, fontSize: 14, color: C.danger, textAlign: 'center', marginTop: 8, paddingHorizontal: 24 },
   container: { flex: 1, backgroundColor: COLORS.cream },
   header: {
     flexDirection: 'row',

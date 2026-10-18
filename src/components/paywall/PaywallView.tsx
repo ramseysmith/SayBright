@@ -30,7 +30,8 @@ const BENEFITS: { icon: string; title: string; body: string }[] = [
 
 export default function PaywallView({ source, onDone, embedded = false }: { source: string; onDone?: () => void; embedded?: boolean }) {
   const c = usePaywallController(source, onDone);
-  const headline = HEADLINES[source] ?? DEFAULT_HEADLINE;
+  // Never promise a free week to someone Apple will not give one
+  const headline = source === 'onboarding' && !c.showTrial ? DEFAULT_HEADLINE : HEADLINES[source] ?? DEFAULT_HEADLINE;
 
   return (
     <View style={styles.root}>

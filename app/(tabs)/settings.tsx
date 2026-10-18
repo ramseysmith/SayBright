@@ -429,6 +429,12 @@ export default function SettingsScreen() {
           />
           <View style={styles.divider} />
           <SettingsRow
+            iconName="help-circle-outline"
+            title="Help and support"
+            onPress={() => openExternal(URLS.support)}
+          />
+          <View style={styles.divider} />
+          <SettingsRow
             iconName="document-text-outline"
             title="Privacy Policy"
             onPress={() => openExternal(URLS.privacy)}
