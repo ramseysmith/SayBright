@@ -41,4 +41,15 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
           STORE_REVIEW_PHONE: ${{ secrets.STORE_REVIEW_PHONE }}
-        run: npx --yes eas-cli@latest metadata:push --non-interactive
+        # The result is also written as an annotation, because cloud sessions can
+        # read annotations through the API but not the raw log. Only screenshot
+        # sizes listed in store.config.json are replaced; list every size the
+        # version has (medium and large iPhone at least) or old ones stay.
+        run: |
+          set +e
+          npx --yes eas-cli@latest metadata:push --non-interactive > out.txt 2>&1
+          code=$?
+          cat out.txt
+          msg=$(sed -e 's/\x1b\[[0-9;]*m//g' -e 's/%/%25/g' -e 's/\r//g' out.txt | grep -v '^\s*$' | tail -60 | sed ':a;N;$!ba;s/\n/%0A/g')
+          if [ "$code" -eq 0 ]; then echo "::notice title=Store listing::$msg"; else echo "::error title=Store listing::$msg"; fi
+          exit "$code"

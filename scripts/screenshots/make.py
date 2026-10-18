@@ -28,7 +28,9 @@ RAW = os.path.join(OUT, 'raw')
 DEVICES = {
     # name: viewport (points), scale, output folder, canvas size, phone frame box
     'iphone': ((440, 956), 3, 'screenshots/6.9-inch', (1320, 2868)),
-    # SayBright is iPhone only (ios.supportsTablet false), so no iPad set
+    # Apple requires the medium display set (6.1 to 6.3 inch) as well; without it
+    # App Store Connect keeps whatever old set is there. SayBright is iPhone only.
+    'iphone61': ((402, 874), 3, 'screenshots/6.1-inch', (1206, 2622)),
 }
 for _, _, folder, _ in DEVICES.values():
     os.makedirs(os.path.join(OUT, folder), exist_ok=True)
@@ -125,6 +127,7 @@ p{margin-top:{{pGap}}px;font-size:{{p}}px;line-height:1.3;font-weight:500;color:
 
 LAYOUT = {
     'iphone': dict(capTop=190, h1=104, p=48, pGap=30, px=110, py=640, overhang=120, r=110, ri=88, bez=22),
+    'iphone61': dict(capTop=174, h1=95, p=44, pGap=27, px=100, py=585, overhang=110, r=100, ri=80, bez=20),
 }
 
 
