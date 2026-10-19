@@ -15,7 +15,7 @@ Scenes and captions live in scenes.json next to this file. Captions: six words o
 fewer in the title, no dashes. The web export renders with Inter instead of SF and
 shows no ads, which is expected.
 """
-import base64, datetime, functools, http.server, io, json, os, sys, threading
+import base64, datetime, functools, http.server, io, json, os, re, sys, threading
 from PIL import Image
 from playwright.sync_api import sync_playwright
 
@@ -58,6 +58,7 @@ def serve(directory):
 
 
 urls = {k: serve(v) for k, v in webs.items()}
+PRICE = re.compile(r"(?i)\bfree\b|\btrial\b|\bprice|\bdiscount|\bsale\b|\bdeal\b|[$€£¥]\s?\d|\d+\s?% off|/\s?(mo|month|yr|year|week)\b|per (month|year|week)")
 errors = []
 
 
@@ -94,6 +95,14 @@ def capture(browser, scene, device):
         if 'scrollTop' in step:
             page.evaluate(SCROLL, step['scrollTop'])
         page.wait_for_timeout(step.get('wait', 600))
+    if scene is not cfg['paywall']:
+        # Guideline 2.3.7: store screenshots may not mention price, free, trials or
+        # discounts (Drift 1.18.0 was rejected for a paywall frame). Check every word
+        # on screen, not just the caption, so a "Try free" chip is caught too.
+        hit = PRICE.search(page.evaluate('document.body.innerText'))
+        if hit:
+            sys.exit(f"{scene['name']} ({device}) shows price text on screen: {hit.group(0)!r}. "
+                     "Use the premium build or another screen.")
     path = os.path.join(RAW, f"{device}-{scene['name']}.png")
     page.screenshot(path=path)
     ctx.close()
@@ -158,11 +167,14 @@ def compose(browser, scene, device, raw_path):
     print('wrote', os.path.relpath(out, ROOT))
 
 
-import re
 for scene in cfg['scenes']:
     for field in ('title', 'subtitle'):
         if re.search(r'[\u2010-\u2015]|\w-\w|\s-\s', scene[field]):
             sys.exit(f"{scene['name']} {field} has a dash: {scene[field]}")
+        if PRICE.search(scene[field]):
+            sys.exit(f"{scene['name']} {field} mentions price, free or a trial (Guideline 2.3.7): {scene[field]}")
+    if any(p in scene.get('path', '') for p in ('/paywall', '/premium')):
+        sys.exit(f"{scene['name']} captures the paywall; that belongs only in cfg paywall, never the listing")
     if len(scene['title'].split()) > 6:
         sys.exit(f"{scene['name']} title is over six words: {scene['title']}")
 

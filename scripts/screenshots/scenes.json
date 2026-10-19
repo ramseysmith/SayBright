@@ -88,11 +88,11 @@
       ]
     },
     {
-      "name": "6-premium",
-      "build": "free",
-      "path": "/paywall",
-      "title": "Your first week is free",
-      "subtitle": "Every category, no limits, no ads",
+      "name": "6-yours",
+      "build": "premium",
+      "path": "/my-affirmations",
+      "title": "Write affirmations in your words",
+      "subtitle": "Keep the ones that matter in one place",
       "theme": "dusk",
       "steps": []
     }
