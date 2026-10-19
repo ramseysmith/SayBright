@@ -33,5 +33,8 @@ jobs:
           git config user.name "Ramsey Graysmith"
           git config user.email "smith.s.ramsey@gmail.com"
           git add store.config.json
+          # metadata:pull downloads screenshots too; commit them, or store.config.json
+          # names files the repo lacks and the next push cannot upload them
+          if [ -d store/apple ]; then git add store/apple; fi
           git diff --cached --quiet || git commit -m "Pull the live App Store listing into store.config.json"
           git push
