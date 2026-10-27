@@ -4,7 +4,7 @@ Demo video for one app, recorded from its Expo web export. Graysmith Labs kit
 (templates/ui/media). It replays the same scenes the App Store screenshots use, so
 the video always shows the current app with the same seeded data.
 
-    python3 demo_video.py <app repo> <web-free> [<web-premium>] [--scenes 1-home,4-breathe] [--hold 1800]
+    python3 demo_video.py <app repo> <web-free> [<web-premium>] [--scenes 1-home,4-breathe] [--hold 1800] [--gap 200]
 
 Reads scripts/screenshots/scenes.json (clock, splashMs, storage, scenes and their
 steps) and app.json, and seeds each scene the way the repo's make.py does: per scene
@@ -42,6 +42,7 @@ ap.add_argument('web_premium', nargs='?')
 ap.add_argument('--scenes', help='comma separated scene names, default every scene')
 ap.add_argument('--hold', type=int, default=1800, help='ms to hold on each scene after its steps')
 ap.add_argument('--splash', type=int, default=None, help='ms the animated splash runs before the app is usable')
+ap.add_argument('--gap', type=int, help='ms between play taps, overrides the scene (BlitzTap)')
 ap.add_argument('--out')
 a = ap.parse_args()
 R = os.path.abspath(a.repo)
@@ -58,6 +59,21 @@ DEMO_GLOBAL = cfg.get('demoGlobal') or (_g.group(1) if _g else None)
 FIXED_CLOCK = cfg.get('clockMode') == 'fixed' or 'clock.set_fixed_time' in make_src
 SEED_PATH = cfg.get('seedPath') or ('/__seed' if "'/__seed'" in make_src else '/')
 SPLASH = cfg.get('splashMs')
+PICK = """miss => {
+  const t = document.querySelector('[aria-label^="Match target: "]');
+  if (!t) return null;
+  const target = t.getAttribute('aria-label').slice('Match target: '.length);
+  for (const b of document.querySelectorAll('[role="button"]')) {
+    const lab = b.getAttribute('aria-label') || '';
+    const parts = lab.split(' ');
+    const hit = lab === target || (!target.includes(' ') && parts.length === 2 && parts[0] === target);
+    if (miss ? (parts.length === 2 && !hit && parts[0] !== target) : hit) {
+      const r = b.getBoundingClientRect();
+      return [r.x + r.width / 2, r.y + r.height / 2];
+    }
+  }
+  return null;
+}"""
 SCROLL = "y => { for (const el of document.querySelectorAll('*')) { if (el.scrollHeight > el.clientHeight + 5 && getComputedStyle(el).overflowY !== 'visible') el.scrollTop = y; } }"
 
 
@@ -163,16 +179,14 @@ def record(browser, scene, idx):
                 page.mouse.up()
                 page.wait_for_timeout(700)
         if 'play' in step or 'miss' in step:
-            # BlitzTap: tap the option matching the target (play) or one that does not (miss)
+            # BlitzTap: tap the option matching the target (play) or one that does not
+            # (miss). The target is found in one page call per tap so the taps keep the
+            # game's real pace on video.
             for _ in range(step.get('play', 1)):
-                target = page.get_by_label(re.compile('^Match target: ')).first.get_attribute('aria-label')[len('Match target: '):]
-                for b in page.get_by_role('button').all():
-                    lab = b.get_attribute('aria-label') or ''
-                    hit = lab == target or (' ' not in target and lab.split(' ')[0] == target and len(lab.split(' ')) == 2)
-                    if ('miss' in step) != hit and ('miss' not in step or (len(lab.split(' ')) == 2 and lab.split(' ')[0] != target)):
-                        b.click()
-                        break
-                page.wait_for_timeout(step.get('gap', 420))
+                box = page.evaluate(PICK, 'miss' in step)
+                if box:
+                    page.mouse.click(box[0], box[1])
+                page.wait_for_timeout(a.gap if a.gap is not None else step.get('gap', 420))
         if 'scrollTop' in step:
             page.evaluate(SCROLL, step['scrollTop'])
         page.wait_for_timeout(max(step.get('wait', 600), 700))
