@@ -20,19 +20,32 @@
     "sub": "rgba(42,30,69,.78)"
   },
   "storage": {
-    "@saybright_user_data": "{\"favorites\":[\"confidence_02\",\"calm_03\",\"gratitude_05\",\"selflove_04\"],\"customAffirmations\":[],\"streak\":{\"current\":11,\"longest\":14,\"lastCheckIn\":\"2026-10-17\",\"history\":[\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\"]},\"preferences\":{\"reminderEnabled\":true,\"reminderTime\":\"08:00\",\"selectedCategories\":[\"confidence\",\"gratitude\",\"morning\",\"selflove\"],\"hasSeenOnboarding\":true},\"sessionCount\":12}"
+    "@saybright_user_data": "{\"favorites\":[\"confidence_02\",\"calm_03\",\"gratitude_05\",\"selflove_04\"],\"customAffirmations\":[{\"id\":\"custom-3\",\"text\":\"I am allowed to take up space.\",\"createdAt\":\"2026-10-17T07:40:00.000Z\"},{\"id\":\"custom-2\",\"text\":\"I finish what I start, one small step at a time.\",\"createdAt\":\"2026-10-12T07:55:00.000Z\"},{\"id\":\"custom-1\",\"text\":\"My calm is stronger than this busy day.\",\"createdAt\":\"2026-10-08T08:05:00.000Z\"}],\"streak\":{\"current\":11,\"longest\":14,\"lastCheckIn\":\"2026-10-17\",\"history\":[\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-10\",\"2026-10-11\",\"2026-10-12\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\",\"2026-10-17\"]},\"preferences\":{\"reminderEnabled\":true,\"reminderTime\":\"08:00\",\"selectedCategories\":[\"confidence\",\"gratitude\",\"morning\",\"selflove\"],\"hasSeenOnboarding\":true},\"sessionCount\":12}"
   },
   "scenes": [
     {
       "name": "1-today",
       "build": "free",
-      "title": "Five affirmations every morning",
-      "subtitle": "Picked for what you want more of",
+      "title": "Start every day on your side",
+      "subtitle": "Five affirmations picked for you",
       "theme": "dawn",
       "steps": []
     },
     {
-      "name": "2-browse",
+      "name": "2-voice",
+      "build": "premium",
+      "clock": "2026-10-18T19:20:00",
+      "title": "Hear it in your own voice",
+      "subtitle": "Save, share and replay the ones that land",
+      "theme": "dusk",
+      "steps": [
+        {
+          "drag": 1
+        }
+      ]
+    },
+    {
+      "name": "3-browse",
       "build": "premium",
       "path": "/browse",
       "title": "Ten categories to explore",
@@ -41,7 +54,7 @@
       "steps": []
     },
     {
-      "name": "3-first",
+      "name": "4-first",
       "build": "free",
       "fresh": true,
       "path": "/onboarding",
@@ -58,19 +71,6 @@
         {
           "click": "I said it",
           "wait": 900
-        }
-      ]
-    },
-    {
-      "name": "4-evening",
-      "build": "premium",
-      "clock": "2026-10-18T19:20:00",
-      "title": "Words that carry you",
-      "subtitle": "Save, share and hear them in your voice",
-      "theme": "dusk",
-      "steps": [
-        {
-          "drag": 2
         }
       ]
     },

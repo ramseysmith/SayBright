@@ -107,7 +107,7 @@ function toPortfolioEvent(
     case 'notification_enabled':
       return [['reminder_opt_in', { source: 'settings' }]];
     case 'paywall_shown':
-      return [['paywall_view', {}]];
+      return [['paywall_view', { source: String(properties?.source ?? 'unknown') }]];
     case 'purchase_completed':
       return [[properties?.trial ? 'trial_start' : 'purchase', {}]];
     case 'purchase_restored':

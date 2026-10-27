@@ -33,3 +33,25 @@ src/services/analytics.ts now also sends the portfolio event list to PostHog (on
 * Ads now request personalized ads only when the person allows tracking in the ATT prompt, which is asked after onboarding. The existing App Privacy answers for AdMob (Device ID and Advertising Data used for tracking, Third Party Advertising) already cover this; nothing new to set.
 * Listing: new screenshots (6.9 inch only, from `npm run screenshots`), URLs on graysmithlabs.com, Apple's standard EULA as Terms, copyright Graysmith Labs LLC. Paywall review shot: store/paywall-review.png.
 * New native code: react-native-svg and the expo-splash-screen config, so 1.3.0 needs a full build, not an over the air update.
+
+## Promotional text rotation (Oct 27 2026, with 1.3.1)
+
+Live with 1.3.1:
+
+> Start each day on your own side with five kind affirmations to say out loud. Premium starts with a free week for eligible new subscribers: all 10 categories and no ads.
+
+Each variant leads with the outcome, then the free week, which applies to
+eligible new subscribers on both the monthly and yearly plans. Rotate one every
+two weeks and log the swap in experiments.md.
+
+Variant A, morning habit angle:
+
+> A kinder morning in a minute or two: five affirmations a day, chosen for what you want more of. Try Premium free for a week if you are an eligible new subscriber.
+
+Variant B, own voice angle:
+
+> Hear kind words in your own voice. Record your favorite affirmations and play them back anytime. Premium starts with a free week for eligible new subscribers.
+
+Variant C, confidence angle:
+
+> Build confidence one sentence at a time. The whole Confidence category is open to everyone, and Premium starts with a free week for eligible new subscribers.

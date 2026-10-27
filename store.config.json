@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "version": "1.3.0",
+    "version": "1.3.1",
     "copyright": "2026 Graysmith Labs LLC",
     "release": {
       "automaticRelease": true
@@ -20,35 +20,35 @@
           "esteem",
           "care",
           "anxiety",
-          "calm",
+          "thinking",
           "voice",
-          "mantra"
+          "joy"
         ],
         "marketingUrl": "https://graysmithlabs.com/apps/saybright.html",
-        "promoText": "New look, and now five free affirmations a day. Premium starts with a free week for eligible new subscribers: every category, no limits and no ads.",
+        "promoText": "Start each day on your own side with five kind affirmations to say out loud. Premium starts with a free week for eligible new subscribers: all 10 categories and no ads.",
         "supportUrl": "https://graysmithlabs.com/apps/saybright.html#support",
         "title": "SayBright: Daily Affirmations",
-        "subtitle": "Positive Thinking & Self Love",
+        "subtitle": "Grow Self Love, Think Positive",
         "privacyPolicyUrl": "https://graysmithlabs.com/apps/saybright-privacy.html",
         "screenshots": {
           "APP_IPHONE_67": [
             "store/screenshots/6.9-inch/1-today.png",
-            "store/screenshots/6.9-inch/2-browse.png",
-            "store/screenshots/6.9-inch/3-first.png",
-            "store/screenshots/6.9-inch/4-evening.png",
+            "store/screenshots/6.9-inch/2-voice.png",
+            "store/screenshots/6.9-inch/3-browse.png",
+            "store/screenshots/6.9-inch/4-first.png",
             "store/screenshots/6.9-inch/5-streak.png",
             "store/screenshots/6.9-inch/6-yours.png"
           ],
           "APP_IPHONE_61": [
             "store/screenshots/6.1-inch/1-today.png",
-            "store/screenshots/6.1-inch/2-browse.png",
-            "store/screenshots/6.1-inch/3-first.png",
-            "store/screenshots/6.1-inch/4-evening.png",
+            "store/screenshots/6.1-inch/2-voice.png",
+            "store/screenshots/6.1-inch/3-browse.png",
+            "store/screenshots/6.1-inch/4-first.png",
             "store/screenshots/6.1-inch/5-streak.png",
             "store/screenshots/6.1-inch/6-yours.png"
           ]
         },
-        "releaseNotes": "SayBright has a brand new look, from the icon to every screen.\n\nFive free affirmations a day instead of one, and the whole Confidence category is now open to everyone. Every other category has a preview you can read before deciding on Premium.\n\nA new start for first time users: pick what you want more of and say your first affirmation right away.\n\nFewer interruptions: no more welcome screen on every launch, and full screen ads are limited to one per visit and never before you finish your daily five.\n\nThank you for saying something kind to yourself today."
+        "releaseNotes": "A clearer App Store page with new screenshots.\n\nFree every day: five affirmations, the full Confidence category and a short preview of every other category.\n\nPremium opens all 10 categories with no daily limit, home screen and lock screen widgets, recordings in your own voice, watermark free share cards and no ads.\n\nThank you for saying something kind to yourself today."
       }
     },
     "categories": [
