@@ -1,4 +1,4 @@
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Linking, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -32,6 +32,10 @@ export default function PaywallView({ source, onDone, embedded = false }: { sour
   const c = usePaywallController(source, onDone);
   // Never promise a free week to someone Apple will not give one
   const headline = source === 'onboarding' && !c.showTrial ? DEFAULT_HEADLINE : HEADLINES[source] ?? DEFAULT_HEADLINE;
+  // Plans, prices, the trial line and the button sit in the pinned footer, so they
+  // never fall below the fold (Ramsey, Nov 2). Short phones drop the hero art.
+  const { height } = useWindowDimensions();
+  const short = height < 760;
 
   return (
     <View style={styles.root}>
@@ -51,10 +55,12 @@ export default function PaywallView({ source, onDone, embedded = false }: { sour
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.inner}>
-            <View style={styles.hero}>
-              <BrightMark size={128} />
-            </View>
-            <Text style={styles.title}>{headline.title}</Text>
+            {short ? null : (
+              <View style={styles.hero}>
+                <BrightMark size={112} />
+              </View>
+            )}
+            <Text style={[styles.title, short && styles.titleShort]}>{headline.title}</Text>
             <Text style={styles.sub}>{headline.sub}</Text>
 
             <View style={styles.benefits}>
@@ -85,24 +91,6 @@ export default function PaywallView({ source, onDone, embedded = false }: { sour
               </View>
             ) : (
               <>
-                <View style={styles.plans}>
-                  {c.hasAnnual ? (
-                    <PlanOption
-                      label="Yearly"
-                      price={`${c.annualPrice} a year`}
-                      badge={c.annualSavings ? `Save ${c.annualSavings}%` : 'Best value'}
-                      selected={c.selected === 'annual'}
-                      onPress={() => c.setSelected('annual' as PlanKey)}
-                    />
-                  ) : null}
-                  <PlanOption
-                    label="Monthly"
-                    price={`${c.monthlyPrice} a month`}
-                    selected={c.selected === 'monthly'}
-                    onPress={() => c.setSelected('monthly' as PlanKey)}
-                  />
-                </View>
-
                 {c.showTrial ? (
                   <View style={styles.timeline}>
                     <TimelineStep dot={C.gold} title="Today" body="Everything unlocks" />
@@ -120,6 +108,23 @@ export default function PaywallView({ source, onDone, embedded = false }: { sour
         {!c.loading && !c.error ? (
           <SafeAreaView edges={['bottom']} style={styles.footer}>
             <View style={styles.inner}>
+              <View style={styles.plans}>
+                {c.hasAnnual ? (
+                  <PlanOption
+                    label="Yearly"
+                    price={`${c.annualPrice} a year`}
+                    badge={c.annualSavings ? `Save ${c.annualSavings}%` : 'Best value'}
+                    selected={c.selected === 'annual'}
+                    onPress={() => c.setSelected('annual' as PlanKey)}
+                  />
+                ) : null}
+                <PlanOption
+                  label="Monthly"
+                  price={`${c.monthlyPrice} a month`}
+                  selected={c.selected === 'monthly'}
+                  onPress={() => c.setSelected('monthly' as PlanKey)}
+                />
+              </View>
                       <Tap
                         onPress={c.handlePurchase}
                         disabled={c.purchasing}
@@ -231,12 +236,13 @@ const styles = StyleSheet.create({
   },
   notNow: { fontFamily: FONTS.bodyMedium, fontSize: 15, color: C.text },
   scroll: { paddingHorizontal: 20, paddingBottom: 24 },
-  footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4, backgroundColor: C.bg0, borderTopWidth: 1, borderTopColor: C.border },
+  footer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 4, backgroundColor: C.bg0, borderTopWidth: 1, borderTopColor: C.border },
   inner: { width: '100%', maxWidth: MAX_CONTENT_WIDTH, alignSelf: 'center' },
   hero: { alignItems: 'center', marginTop: -8 },
   title: { fontFamily: FONTS.displayBold, fontSize: 30, lineHeight: 36, color: C.text, textAlign: 'center', marginTop: 2 },
+  titleShort: { fontSize: 26, lineHeight: 32, marginTop: 4 },
   sub: { fontFamily: FONTS.bodyRegular, fontSize: 16, lineHeight: 22, color: C.textSecondary, textAlign: 'center', marginTop: 8 },
-  benefits: { marginTop: 22, gap: 14 },
+  benefits: { marginTop: 20, gap: 12 },
   benefit: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   benefitIcon: {
     width: 44,
@@ -264,13 +270,14 @@ const styles = StyleSheet.create({
   errorBody: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: C.textSecondary, marginTop: 4, textAlign: 'center' },
   retry: { marginTop: 14, paddingHorizontal: 26, paddingVertical: 10, borderRadius: 999, backgroundColor: C.accent },
   retryText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: C.onAccent },
-  plans: { marginTop: 24, gap: 10 },
+  plans: { flexDirection: 'row', gap: 10, marginTop: 6, marginBottom: 10 },
   plan: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: RADIUS.md,
     backgroundColor: C.surface,
     borderWidth: 1.5,
@@ -282,9 +289,9 @@ const styles = StyleSheet.create({
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.accent },
   planLabel: { fontFamily: FONTS.bodyBold, fontSize: 16, color: C.text },
   planPrice: { fontFamily: FONTS.bodyRegular, fontSize: 14, color: C.textSecondary, marginTop: 1 },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: C.goldDim, borderWidth: 1, borderColor: C.goldBorder },
-  badgeText: { fontFamily: FONTS.bodyBold, fontSize: 12, color: C.onGold },
-  timeline: { marginTop: 20, paddingHorizontal: 6 },
+  badge: { position: 'absolute', top: -10, right: 8, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, backgroundColor: C.gold },
+  badgeText: { fontFamily: FONTS.bodyBold, fontSize: 11, color: C.onGold },
+  timeline: { marginTop: 22, paddingHorizontal: 6 },
   step: { flexDirection: 'row', minHeight: 44 },
   stepRail: { width: 18, alignItems: 'center' },
   stepDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },

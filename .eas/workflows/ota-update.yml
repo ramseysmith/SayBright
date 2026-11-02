@@ -1,0 +1,15 @@
+name: Over the air update (production)
+
+# Run by hand. Publishes the current JavaScript to the production channel, which
+# reaches every installed build whose runtime matches the app.json version.
+# Only for JavaScript changes; anything native needs a new build.
+
+jobs:
+  publish_ios_update:
+    name: Publish iOS update
+    type: update
+    environment: production
+    params:
+      branch: production
+      platform: ios
+      message: ${{ github.commit_message || 'Over the air update' }}
