@@ -36,6 +36,7 @@ Retention and revenue
 * The paywall can be reached in two taps from home, and every entry point passes a source.
 * Onboarding reaches the core value inside onboarding (Drift plays a sound on the second screen), asks for the retention permission at the moment it makes sense, and ends on a skippable paywall.
 * The paywall: one hero, three concrete benefits (the first names what Premium adds), plan cards with annual first when it exists, a free week timeline only when eligible, a clear quiet way out, Restore, Terms and Privacy.
+* Paywall above the fold: capture the paywall and its onboarding variant at 375 by 667, 393 by 852 and 440 by 956 points. Every plan with its price, the trial line and the main button must be visible without scrolling and not covered by a pinned footer; only features may scroll. Anything below the fold is a must fix (Ramsey, Nov 2 2026).
 * Full screen ads never interrupt the core experience and never appear before the first success.
 
 End with the three changes that would most improve day 7 retention or trial starts.
