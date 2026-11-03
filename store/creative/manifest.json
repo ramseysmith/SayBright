@@ -1,0 +1,19 @@
+{
+  "kit": 2,
+  "header": [
+    "Grow self love",
+    "think positive"
+  ],
+  "search": [
+    "Grow self love",
+    "and think",
+    "positive"
+  ],
+  "screen": "1-today",
+  "appVersion": "1.3.1",
+  "files": [
+    "store/creative/header.png",
+    "store/creative/search.png"
+  ],
+  "specsChecked": "Apple creative asset specifications and safe area templates, Nov 2026"
+}

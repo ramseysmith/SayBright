@@ -1,0 +1,10 @@
+{
+  "header": ["Grow self love", "think positive"],
+  "search": ["Grow self love", "and think", "positive"],
+  "screen": "1-today",
+  "backdrop": "design/creative/backdrop.svg",
+  "mark": "design/creative/mark.svg",
+  "glyphs": ["design/art/confidence.svg", "design/art/gratitude.svg", "design/art/calm.svg", "design/art/morning.svg", "design/art/selflove.svg", "design/art/career.svg"],
+  "ink": {"title": "#2A1E45", "accent": "#5B4BC4", "glyph": "#5B4BC4", "chip": "rgba(255,248,240,.42)", "chipBorder": "rgba(255,255,255,.7)", "bezel": "#2A1E45"},
+  "font": "Inter Display"
+}
