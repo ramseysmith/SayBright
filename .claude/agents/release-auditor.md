@@ -33,6 +33,7 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 ## Design and screenshots
 14b. Every path under store.config.json screenshots exists and has the slot's size (APP_IPHONE_67 1320 x 2868, APP_IPAD_PRO_3GEN_129 2064 x 2752). When app.json has supportsTablet true, an iPad set is listed.
 14b2. No listing screenshot or caption references price, free, trials, discounts or sales, and none shows the paywall or an upsell chip like "Try free" (Guideline 2.3.7; rejected Drift 1.18.0). Check scripts/screenshots/scenes.json titles, subtitles and paths, run `grep -iE "free|trial|price|\$[0-9]|/month|% off" scripts/screenshots/scenes.json`, and Read every image listed in store.config.json screenshots. The paywall belongs only in store/paywall-review.png.
+14b3. Creative assets (iOS 27 header and search results): if store/creative/ exists, universal.png is 5244 x 2950 PNG, header.png 3840 x 1646 and search.png 3840 x 2560, none with alpha (`python3 -c "from PIL import Image; im=Image.open(P); print(im.size, im.mode)"`), the headline in store/creative/manifest.json has no dash and no price, free, trial, URL, award or best wording, and its appVersion is not newer than the live version (assets may only show what the live version has). If store/creative/ is missing, report N/A with the fix: run the creative-assets skill.
 14c. No placeholder strings users can see: grep src for "Loading ad", "Ad unavailable", "lorem", "TODO" in JSX text.
 14d. The paywall privacy link points at graysmithlabs.com/apps/<app>-privacy.html and that page names AdMob, RevenueCat and any analytics in use.
 
@@ -40,5 +41,8 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 15. Every screen has an empty state, a loading state and an error state.
 16. The review prompt fires only at a success moment and is rate limited.
 17. Support contact and Rate the app are reachable from the main screen or settings; there is a delete all data option.
+
+## Android (when app.json has android.package)
+18. `node scripts/android/doctor.mjs` passes. For an Android build meant for Google Play, the android-auditor subagent runs too and its FAILs block the build. A change to shared code (paywall, ads, store links, notifications) is not done until both platforms pass, because every app ships to both stores.
 
 Things you cannot see (say so, do not guess): prices, availability, introductory offers, Paid Apps Agreement, App Privacy answers, subscriptions attached to the version. List them as "Ramsey to confirm in App Store Connect".

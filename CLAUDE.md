@@ -104,9 +104,15 @@ ramseysmith/graysmith_labs_agent (PLAN.md, CLAUDE.md, data/latest.json).
 * Listing copy lives in store.config.json. If it is missing, run the Store listing
   pull workflow once. Merging a listing change to the default branch publishes it
   through store-push.yml.
-* Subagents in .claude/agents: aso-copywriter, release-auditor, ux-reviewer,
-  screenshot-producer, monetization-engineer, growth-analyst, illustrator. Run release-auditor
-  before any build meant for review.
+* Subagents in .claude/agents: aso-copywriter, release-auditor, android-auditor,
+  ux-reviewer, screenshot-producer, monetization-engineer, growth-analyst,
+  illustrator. Run release-auditor before any build meant for review, and
+  android-auditor before any Android build.
+* Every app ships to Google Play too (HQ docs/android.md). `node
+  scripts/android/doctor.mjs` must pass after any change; store links go
+  through src/lib/stores.ts (or the app's copy); the Play listing lives in
+  play.config.json and `npm run build:play` sends a build to Play internal
+  testing. Package is com.graysmithlabs.<app> and never changes.
 * The subagents, the guard hook, its settings and this section are synced from HQ
   (listed in .claude/synced.json). Change them in HQ templates/app and run
   `node scripts/claude_assets.mjs sync` there, or the next sync overwrites the edit.
