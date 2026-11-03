@@ -54,6 +54,7 @@ import Tap from '../../src/components/Tap';
 import SunriseHero from '../../src/components/art/SunriseHero';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import BrightMark from '../../src/components/art/BrightMark';
+import BillingIssueBanner from '../../src/components/BillingIssueBanner';
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
@@ -438,6 +439,8 @@ export default function TodayScreen() {
               </Animated.View>
             </Tap>
           </View>
+
+          <BillingIssueBanner />
 
           <View style={[styles.hero, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
             <SunriseHero width={winWidth} period={period} height={Math.min(240, Math.max(140, winHeight * 0.22))} />

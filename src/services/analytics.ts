@@ -30,7 +30,9 @@ export type AnalyticsEvent =
   | 'custom_affirmation_created'
   | 'custom_affirmation_deleted'
   | 'daily_set_finished'
-  | 'onboarding_affirmation_said';
+  | 'onboarding_affirmation_said'
+  | 'billing_issue_view'
+  | 'billing_issue_tap';
 
 type EventValue = string | number | boolean | null | undefined;
 
@@ -71,7 +73,9 @@ type PortfolioEvent =
   | 'paywall_view'
   | 'trial_start'
   | 'purchase'
-  | 'restore';
+  | 'restore'
+  | 'billing_issue_view'
+  | 'billing_issue_tap';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
@@ -112,6 +116,9 @@ function toPortfolioEvent(
       return [[properties?.trial ? 'trial_start' : 'purchase', {}]];
     case 'purchase_restored':
       return [['restore', {}]];
+    case 'billing_issue_view':
+    case 'billing_issue_tap':
+      return [[event, { kind: properties?.inGrace ? 'grace' : 'retry' }]];
     default:
       return [];
   }

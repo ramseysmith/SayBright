@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 import Purchases, {
+  CustomerInfo,
   LOG_LEVEL,
   PurchasesOffering,
   PurchasesPackage,
@@ -129,6 +130,58 @@ export async function restorePurchases(): Promise<boolean> {
     console.warn('[Purchases] restorePurchases error:', error);
     return false;
   }
+}
+
+/** A charge for Premium failed and Apple is still retrying it. */
+export interface BillingIssue {
+  /** Premium is still on (Apple's billing grace period) */
+  inGrace: boolean;
+  /** Apple's page to update the payment method or manage the subscription */
+  url: string;
+}
+
+const SUBSCRIPTIONS_URL =
+  Platform.OS === 'android'
+    ? 'https://play.google.com/store/account/subscriptions'
+    : 'https://apps.apple.com/account/subscriptions';
+
+export function billingIssueFrom(info: CustomerInfo): BillingIssue | null {
+  const ent = info.entitlements?.all?.[ENTITLEMENT_ID];
+  // Only while Apple still retries: renewal on and the issue not resolved by a renewal
+  if (!ent || !ent.billingIssueDetectedAt || !ent.willRenew || ent.unsubscribeDetectedAt) return null;
+  return { inGrace: ent.isActive, url: info.managementURL ?? SUBSCRIPTIONS_URL };
+}
+
+export function isPremiumFrom(info: CustomerInfo): boolean {
+  return info.entitlements?.active?.[ENTITLEMENT_ID] !== undefined;
+}
+
+export async function fetchCustomerInfo(): Promise<CustomerInfo | null> {
+  try {
+    return await Purchases.getCustomerInfo();
+  } catch (error) {
+    console.warn('[Purchases] getCustomerInfo error:', error);
+    return null;
+  }
+}
+
+/**
+ * RevenueCat pushes new customer info (renewal, expiry, billing issue) while the
+ * app is open. Returns the unsubscribe function.
+ */
+export function onCustomerInfoUpdate(listener: (info: CustomerInfo) => void): () => void {
+  try {
+    Purchases.addCustomerInfoUpdateListener(listener);
+  } catch {
+    return () => {};
+  }
+  return () => {
+    try {
+      Purchases.removeCustomerInfoUpdateListener?.(listener);
+    } catch {
+      // ignore
+    }
+  };
 }
 
 export type { PurchasesOffering, PurchasesPackage };

@@ -12,6 +12,7 @@ const Purchases = {
   checkTrialOrIntroductoryPriceEligibility: async () => ({}),
   enableAdServicesAttributionTokenCollection: noop,
   addCustomerInfoUpdateListener: () => {},
+  removeCustomerInfoUpdateListener: () => {},
 };
 module.exports = Purchases;
 module.exports.default = Purchases;
