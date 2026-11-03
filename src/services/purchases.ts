@@ -6,7 +6,8 @@ import Purchases, {
 } from 'react-native-purchases';
 
 const REVENUECAT_API_KEY_IOS = 'appl_VOVMWNILkJsFKGXyPDbtCmZYBJb';
-const REVENUECAT_API_KEY_ANDROID = 'test_jsbouKJlEVoEVDxZGbdKFavGHyd';
+// RevenueCat Play Store app (com.graysmithlabs.saybright)
+const REVENUECAT_API_KEY_ANDROID = 'goog_BKDgxculsAUlswBxxgBoEutzYlb';
 
 // These must match the App Store Connect product IDs exactly, and the same
 // strings must be set as the product identifiers in the RevenueCat dashboard.

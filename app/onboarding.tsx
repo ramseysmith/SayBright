@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { BackHandler, Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -46,6 +46,17 @@ export default function OnboardingScreen() {
     Haptics.selectionAsync().catch(() => {});
     setStep(next);
   };
+
+  // Android hardware back steps back through onboarding; on the first step the system handles it
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (index <= 0) return false;
+      Haptics.selectionAsync().catch(() => {});
+      setStep(STEPS[index - 1]);
+      return true;
+    });
+    return () => sub.remove();
+  }, [index]);
 
   const finish = async () => {
     await setSelectedCategories(selected);

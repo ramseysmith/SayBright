@@ -16,6 +16,18 @@
       "channel": "production",
       "ios": {
         "image": "auto"
+      },
+      "android": {
+        "buildType": "app-bundle"
+      }
+    },
+    "android-sim": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
       }
     }
   },
@@ -24,6 +36,10 @@
       "ios": {
         "ascAppId": "6767243151",
         "metadataPath": "./store.config.js"
+      },
+      "android": {
+        "track": "internal",
+        "releaseStatus": "completed"
       }
     }
   }

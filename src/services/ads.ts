@@ -8,10 +8,18 @@ import {
   TestIds,
 } from 'react-native-google-mobile-ads';
 
+// AdMob app and unit ids are per platform. Android stays ad free until the
+// Android app and its units exist in AdMob (HQ docs/android.md); then put the
+// units here, the app id in app.json, and turn this on.
+export const ANDROID_ADS_ENABLED = false;
+
+/** Ads run on iOS, and on Android only once its own AdMob units exist. */
+export const ADS_AVAILABLE = Platform.OS === 'ios' || (Platform.OS === 'android' && ANDROID_ADS_ENABLED);
+
 const REAL_INTERSTITIAL_IOS = 'ca-app-pub-8327362355420246/4571005281';
-const REAL_INTERSTITIAL_ANDROID = 'ca-app-pub-8327362355420246/4571005281';
+const REAL_INTERSTITIAL_ANDROID = '';
 const REAL_BANNER_IOS = 'ca-app-pub-8327362355420246/1617538888';
-const REAL_BANNER_ANDROID = 'ca-app-pub-8327362355420246/1617538888';
+const REAL_BANNER_ANDROID = '';
 
 const AD_UNITS = {
   interstitial: __DEV__
@@ -32,7 +40,7 @@ let isInterstitialLoaded = false;
 // App Tracking Transparency has to be answered before the ad SDK collects
 // anything. On iOS nothing loads until allowAds() runs; other platforms have no
 // ATT requirement so they start open.
-let adsAllowed = Platform.OS !== 'ios';
+let adsAllowed = Platform.OS !== 'ios' && ADS_AVAILABLE;
 const adsAllowedListeners = new Set<() => void>();
 
 // Personalized ads only when the person allowed tracking in the ATT prompt.
@@ -44,7 +52,7 @@ export function getAdsPersonalized(): boolean {
 
 export function allowAds(trackingGranted = false): void {
   personalized = trackingGranted;
-  if (adsAllowed) return;
+  if (adsAllowed || !ADS_AVAILABLE) return;
   adsAllowed = true;
   adsAllowedListeners.forEach((listener) => listener());
 }

@@ -18,6 +18,15 @@ If the RevenueCat MCP tools are not loaded, stop and tell Ramsey to connect http
 6. Right after configure on iOS: `Purchases.enableAdServicesAttributionTokenCollection()` so RevenueCat shows which Apple Search Ads keywords bring paying users. No ATT needed.
 7. Set a RevenueCat customer attribute or pass `source` to every paywall open so conversion can be read per entry point.
 
+## Google Play (every app ships to both stores)
+1. In the app's RevenueCat project, a Play Store app (`create-app`, type play_store) with package `com.graysmithlabs.<app>`. Its public key starts with `goog_`; wire it as `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` (or the app's existing key pattern) and pick the key by platform. Never pass an `appl_` key on Android: SignSnap did, and every Android purchase would have failed.
+2. Play products in RevenueCat use `subscriptionId:basePlanId`: `<app>_premium_monthly:monthly` and `<app>_premium_annual:annual`, attached to entitlement `premium` and to the same `$rc_monthly` and `$rc_annual` packages as iOS, so one paywall serves both stores. Mirror the iOS plans and trials; Ramsey sets the prices and the free trial offer in Play Console (or approves pushing them with RevenueCat's store state tools).
+3. RevenueCat needs the Google service account JSON on the Play Store app (`validate-app-credentials` shows whether it is there) and real time developer notifications (a Pub/Sub topic from the RevenueCat dashboard pasted in Play Console, Monetization setup). Both are Ramsey's taps; check them, never guess.
+4. iOS only calls stay behind `Platform.OS === 'ios'`: AdServices attribution, offer code redemption, App Store review sheet assumptions. Manage subscription on Android goes to `stores.ts manageSubscriptionsUrl(sku)`.
+5. AdMob on Android: a separate AdMob app (platform Android, package name) with its own banner, interstitial and rewarded units. Never reuse iOS app or unit ids; AdMob ties them to a platform and serves nothing across. Until Ramsey creates them, keep the Google sample app id in `androidAppId` and turn Android ads off in the ads config so nothing is requested.
+6. No ATT on Android. For users in the EEA and UK, request consent with the UMP form (`AdsConsent.requestInfoUpdate` then `loadAndShowConsentFormIfRequired`) before the first ad request on both platforms.
+7. Data safety in Play Console must match: purchase history (RevenueCat), device or other ids and approximate interactions (AdMob), app interactions (PostHog). Update the privacy page in the same change.
+
 ## Product analytics (needed to measure retention and the funnel)
 1. PostHog (`npx expo install posthog-react-native expo-file-system expo-application expo-device expo-localization`), key in EXPO_PUBLIC_POSTHOG_KEY, `disabled: __DEV__`, screen autocapture off, no identify call so users stay anonymous.
 2. Events, no more: onboarding_complete, core_action (the app's main verb), success_moment, reminder_opt_in, paywall_view {source}, trial_start, purchase, restore. Retention comes from app opens per day.

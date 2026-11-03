@@ -9,6 +9,7 @@ import CategoryIcon from '../art/CategoryIcon';
 import { usePaywallController, type PlanKey } from '../../hooks/usePaywallController';
 import { C, MAX_CONTENT_WIDTH, RADIUS } from '../../theme/colors';
 import { FONTS } from '../../constants/theme';
+import { isAndroid, manageHint, storeAccount } from '../../utils/stores';
 import { URLS } from '../../constants/urls';
 
 /** Headline per place the paywall was opened from. */
@@ -25,13 +26,20 @@ const DEFAULT_HEADLINE = { title: 'Say it brighter, every day', sub: 'Every cate
 const BENEFITS: { icon: string; title: string; body: string }[] = [
   { icon: 'confidence', title: 'All 10 categories', body: '340+ affirmations, from calm to career' },
   { icon: 'morning', title: 'No daily limit, no ads', body: 'Swipe as long as you like' },
-  { icon: 'creativity', title: 'Widgets and your own voice', body: 'Home screen widgets and affirmations recorded in your voice' },
+  // Widgets are iOS only (modules/widget-storage is Apple only), so Android sells the voice alone
+  isAndroid
+    ? { icon: 'creativity', title: 'Your own voice', body: 'Affirmations recorded in your voice, played back each day' }
+    : { icon: 'creativity', title: 'Widgets and your own voice', body: 'Home screen widgets and affirmations recorded in your voice' },
 ];
 
 export default function PaywallView({ source, onDone, embedded = false }: { source: string; onDone?: () => void; embedded?: boolean }) {
   const c = usePaywallController(source, onDone);
   // Never promise a free week to someone Apple will not give one
-  const headline = source === 'onboarding' && !c.showTrial ? DEFAULT_HEADLINE : HEADLINES[source] ?? DEFAULT_HEADLINE;
+  // There are no widgets on Android, so that source gets the default headline there
+  const headline =
+    (source === 'onboarding' && !c.showTrial) || (isAndroid && source === 'widgets')
+      ? DEFAULT_HEADLINE
+      : HEADLINES[source] ?? DEFAULT_HEADLINE;
   // Plans, prices, the trial line and the button sit in the pinned footer, so they
   // never fall below the fold (Ramsey, Nov 2). Short phones drop the hero art.
   const { height } = useWindowDimensions();
@@ -200,13 +208,13 @@ function LegalSection({ monthlyPrice, annualPrice, showAnnual, showTrial }: { mo
       {showTrial ? (
         <Text style={styles.legalText}>
           The free trial is for eligible new subscribers. If you do not cancel at least 24 hours before it ends, the subscription
-          starts and your Apple ID is charged the plan price.
+          starts and {storeAccount} is charged the plan price.
         </Text>
       ) : null}
       <Text style={styles.legalText}>
-        Payment is charged to your Apple ID at confirmation of purchase. The subscription renews automatically unless it is canceled at
+        Payment is charged to {storeAccount} at confirmation of purchase. The subscription renews automatically unless it is canceled at
         least 24 hours before the end of the current period, and your account is charged for renewal within 24 hours before the period
-        ends. Manage or cancel it in your App Store account settings.
+        ends. {manageHint}
       </Text>
       <View style={styles.legalLinks}>
         <Tap hitSlop={10} accessibilityRole="link" onPress={() => Linking.openURL(URLS.terms).catch(() => {})}>

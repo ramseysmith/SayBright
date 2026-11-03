@@ -34,7 +34,7 @@ export function CategoryPicker({
       }
       return;
     }
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     const isSelected = selectedIds.includes(cat.id);
     if (isSelected) {
       onChange(selectedIds.filter((id) => id !== cat.id));

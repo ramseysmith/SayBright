@@ -10,7 +10,11 @@
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
     "screenshots": "bash scripts/screenshots/run.sh",
-    "art": "node scripts/build-art.mjs"
+    "art": "node scripts/build-art.mjs",
+    "build:play": "bash scripts/android/play.sh",
+    "android:doctor": "node scripts/android/doctor.mjs --prebuild",
+    "play:push": "node scripts/android/play-listing.mjs --push",
+    "android:local": "bash scripts/android/local.sh"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

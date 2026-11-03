@@ -31,14 +31,14 @@
       [
         "expo-notifications",
         {
-          "icon": "./assets/icon.png",
+          "icon": "./assets/android/notification.png",
           "color": "#F5A623"
         }
       ],
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-8327362355420246~5390186376",
+          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
           "iosAppId": "ca-app-pub-8327362355420246~5390186376"
         }
       ],
@@ -46,6 +46,12 @@
         "expo-tracking-transparency",
         {
           "userTrackingPermission": "This allows SayBright to show you more relevant content and support the free version of the app."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "SayBright records your voice reading affirmations so you can play them back."
         }
       ]
     ],
@@ -66,14 +72,22 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FF9A6B"
+        "foregroundImage": "./assets/android/adaptive-foreground.png",
+        "backgroundColor": "#FF9A6B",
+        "monochromeImage": "./assets/android/adaptive-monochrome.png"
       },
-      "package": "com.saybright.app",
+      "package": "com.graysmithlabs.saybright",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "com.google.android.gms.permission.AD_ID"
+      "permissions": [],
+      "blockedPermissions": [
+        "com.google.android.gms.permission.AD_ID",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
       ]
     },
     "web": {

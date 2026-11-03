@@ -1,0 +1,64 @@
+name: Play build
+
+# Starts an EAS production Android build and submits it to Google Play, so a
+# shift can ship Android without Ramsey's Mac. Run it from the Actions tab, or:
+#   gh api -X POST repos/OWNER/REPO/actions/workflows/play-build.yml/dispatches -f ref=main -f "inputs[track]=internal"
+# HQ rule: at most one store build per app per week, only after release-auditor
+# and the Android doctor pass. Promote internal to production with the
+# play-release skill once Ramsey (or a tester) has opened the build.
+# Uses the EXPO_TOKEN repo secret and the Google service account key stored in
+# EAS credentials (Expo dashboard, Credentials, Android). The build runs on EAS;
+# this job only checks, queues it and exits.
+# Synced from HQ (templates/app/.github/workflows). Change it there.
+
+on:
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Play track to submit to
+        default: internal
+        type: choice
+        options: [internal, alpha, beta, production]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: oven-sh/setup-bun@v2
+        if: hashFiles('bun.lock') != ''
+      - name: Install
+        run: |
+          if [ -f bun.lock ]; then bun install --frozen-lockfile; else npm ci --ignore-scripts; fi
+      - name: Checks
+        run: |
+          run() { if [ -f bun.lock ]; then bun run "$1"; else npm run -s "$1"; fi; }
+          has() { node -e "process.exit(require('./package.json').scripts?.['$1'] ? 0 : 1)"; }
+          if has check; then run check; elif has typecheck; then run typecheck; else echo "no check or typecheck script"; fi
+      - name: Android doctor
+        run: node scripts/android/doctor.mjs --prebuild
+      - name: Refuse a version code that was already used
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          src=$(node -p "require('./eas.json').cli?.appVersionSource || 'remote'")
+          if [ "$src" != local ]; then echo "EAS manages version codes (appVersionSource $src)"; exit 0; fi
+          next=$(node -p "require('./app.json').expo.android?.versionCode || 0")
+          last=$(npx --yes eas-cli@latest build:list --platform android --limit 10 --json --non-interactive | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const b=JSON.parse(s).filter(x=>x.status!=='CANCELED').map(x=>+x.appBuildVersion||0);console.log(Math.max(0,...b))})")
+          echo "app.json versionCode $next, highest built $last"
+          if [ "$next" -le "$last" ]; then echo "::error::Raise android.versionCode in app.json above $last and commit first."; exit 1; fi
+      - name: Queue build with auto submit
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          TRACK: ${{ inputs.track }}
+        run: |
+          node -e "
+            const fs=require('fs');const e=JSON.parse(fs.readFileSync('eas.json','utf8'));
+            e.submit=e.submit||{};e.submit.production=e.submit.production||{};
+            e.submit.production.android={...(e.submit.production.android||{}),track:process.env.TRACK};
+            fs.writeFileSync('eas.json',JSON.stringify(e,null,2));"
+          npx --yes eas-cli@latest build --platform android --profile production --auto-submit --non-interactive --no-wait

@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { cancelAllExceptTrialReminder } from './trial';
+import { ensureReminderChannel, REMINDER_CHANNEL_ID } from './notificationChannel';
 import * as Device from 'expo-device';
-import { Platform } from 'react-native';
 import { getDailyAffirmations, getDateKey } from '../utils/affirmations';
 import { getUserData } from './storage';
 
@@ -20,6 +20,9 @@ export async function requestNotificationPermissions(): Promise<boolean> {
     return false;
   }
 
+  // Android needs the channel before the permission prompt can show
+  await ensureReminderChannel();
+
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
@@ -30,14 +33,6 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 
   if (finalStatus !== 'granted') {
     return false;
-  }
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('reminders', {
-      name: 'Daily Reminders',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-    });
   }
 
   return true;
@@ -93,6 +88,7 @@ export async function scheduleDailyReminder(
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: fireDate,
+          channelId: REMINDER_CHANNEL_ID,
         },
       });
       if (!firstId) firstId = id;

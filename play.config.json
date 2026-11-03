@@ -1,0 +1,29 @@
+{
+  "packageName": "com.graysmithlabs.saybright",
+  "defaultLanguage": "en-US",
+  "details": {
+    "contactEmail": "ramsey@graysmithlabs.com",
+    "contactWebsite": "https://graysmithlabs.com/apps/saybright.html"
+  },
+  "listings": {
+    "en-US": {
+      "title": "SayBright: Daily Affirmations",
+      "shortDescription": "Daily affirmations for self love and confidence: five positive words each day",
+      "fullDescription": "SayBright gives you five daily affirmations every morning, picked for what you want more of. Say these positive affirmations out loud, save the ones that land, and build a self love habit that keeps you on your own side.\n\nSAY IT OUT LOUD\nSayBright starts with your first affirmation in under a minute. Pick what you want more of, read it, say it, and feel the difference a kind sentence makes.\n\nFIVE A DAY, FREE\nEvery day brings five fresh affirmations from the topics you chose, the same five your morning reminder points to. Swipe through them, save your favorites, and come back tomorrow for five more.\n\nTEN CATEGORIES, 340 AFFIRMATIONS\nConfidence, Gratitude, Morning Energy, Self Love, Career Growth, Relationships, Health and Body, Wealth and Abundance, Calm and Anxiety Relief, and Creativity. Confidence affirmations are fully open on the free plan, and every other category lets you read a preview.\n\nHEAR IT IN YOUR OWN VOICE\nRecord any affirmation in your own voice and play it back whenever you need it. Hearing your own words is a simple way to make positive self talk stick.\n\nWRITE YOUR OWN\nKeep personal affirmations in My Affirmations, right next to the ones we wrote for you.\n\nBUILD YOUR STREAK\nOpen SayBright each day to grow your streak, and celebrate milestones at 7, 14, 30, 60, 90, 180 and 365 days.\n\nSHARE CARDS\nTurn any affirmation into a quote card for Stories, chats or anywhere you want to spread some light.\n\nDAILY REMINDERS\nPick a time and SayBright sends one gentle reminder a day, so your daily affirmations become a habit.\n\nFREE TO START\nThe free plan includes five affirmations a day, the full Confidence category, previews of every other category, streaks, share cards, reminders and your own written affirmations.\n\nSAYBRIGHT PREMIUM\nPremium opens all 10 categories and every positive affirmation with no daily limit, recordings in your own voice and watermark free share cards.\n\nPremium is a monthly or yearly subscription with a 1 week free trial for eligible new subscribers. It renews automatically unless you cancel before the end of the current period. Cancel anytime in Google Play under Payments and subscriptions.\n\nPrivacy Policy: https://graysmithlabs.com/apps/saybright-privacy.html"
+    }
+  },
+  "images": {
+    "en-US": {
+      "icon": "store/google/icon.png",
+      "featureGraphic": "store/google/feature.png",
+      "phoneScreenshots": [
+        "store/google/phone/1-today.png",
+        "store/google/phone/2-voice.png",
+        "store/google/phone/3-browse.png",
+        "store/google/phone/4-first.png",
+        "store/google/phone/5-streak.png",
+        "store/google/phone/6-yours.png"
+      ]
+    }
+  }
+}

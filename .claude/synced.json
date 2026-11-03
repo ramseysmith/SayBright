@@ -1,6 +1,7 @@
 {
   "note": "Synced from ramseysmith/graysmith_labs_agent by scripts/claude_assets.mjs. Change these files in HQ and run the sync; edits made here are overwritten.",
   "files": {
+    ".claude/agents/android-auditor.md": "templates/app/.claude/agents/android-auditor.md",
     ".claude/agents/aso-copywriter.md": "templates/app/.claude/agents/aso-copywriter.md",
     ".claude/agents/growth-analyst.md": "templates/app/.claude/agents/growth-analyst.md",
     ".claude/agents/illustrator.md": "templates/app/.claude/agents/illustrator.md",
@@ -10,6 +11,12 @@
     ".claude/agents/ux-reviewer.md": "templates/app/.claude/agents/ux-reviewer.md",
     ".claude/hooks/guard.mjs": "templates/app/.claude/hooks/guard.mjs",
     ".claude/settings.json#hooks": "templates/app/.claude/settings.json",
-    "CLAUDE.md#Graysmith Labs HQ": "templates/app/CLAUDE.hq.md"
+    ".github/workflows/play-build.yml": "templates/app/.github/workflows/play-build.yml",
+    ".github/workflows/play-listing.yml": "templates/app/.github/workflows/play-listing.yml",
+    "CLAUDE.md#Graysmith Labs HQ": "templates/app/CLAUDE.hq.md",
+    "scripts/android/doctor.mjs": "templates/app/scripts/android/doctor.mjs",
+    "scripts/android/local.sh": "templates/app/scripts/android/local.sh",
+    "scripts/android/play-listing.mjs": "templates/app/scripts/android/play-listing.mjs",
+    "scripts/android/play.sh": "templates/app/scripts/android/play.sh"
   }
 }

@@ -14,6 +14,7 @@ import { usePremium } from '../context/PremiumContext';
 import { setCachedPremiumStatus } from '../services/storage';
 import { useToast } from '../components/Toast';
 import { trackEvent } from '../services/analytics';
+import { storeAccount } from '../utils/stores';
 import {
   freeTrialOf,
   trialEligibility,
@@ -30,18 +31,19 @@ export interface ResolvedPackages {
   annual: PurchasesPackage | null;
 }
 
+// Play ids carry a base plan suffix ("saybright_monthly:monthly"), so match on the part before the colon.
 function resolvePackages(offering: PurchasesOffering | null): ResolvedPackages {
   if (!offering) return { monthly: null, annual: null };
   const monthly =
     offering.monthly ??
     offering.availablePackages.find(
-      (p) => p.product.identifier === PRODUCT_IDS.monthly
+      (p) => p.product.identifier.split(':')[0] === PRODUCT_IDS.monthly
     ) ??
     null;
   const annual =
     offering.annual ??
     offering.availablePackages.find(
-      (p) => p.product.identifier === PRODUCT_IDS.annual
+      (p) => p.product.identifier.split(':')[0] === PRODUCT_IDS.annual
     ) ??
     null;
   return { monthly, annual };
@@ -156,7 +158,7 @@ export function usePaywallController(source: string, onDone?: () => void) {
         package: pkg.identifier,
       });
     }
-    Haptics.selectionAsync();
+    Haptics.selectionAsync().catch(() => {});
     trackEvent('purchase_started', { variant, plan: selected, source });
     setPurchasing(true);
     try {
@@ -195,7 +197,7 @@ export function usePaywallController(source: string, onDone?: () => void) {
       toast.show('Purchases restored successfully.');
       close();
     } else {
-      setNotice('We could not find a previous purchase for this Apple ID.');
+      setNotice(`We could not find a previous purchase for ${storeAccount}.`);
     }
     setRestoring(false);
   };

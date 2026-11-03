@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActionSheetIOS,
   ActivityIndicator,
+  Platform,
   StyleSheet,
   Text,
   View,
@@ -53,6 +54,7 @@ import { RecordingModal } from '../../src/components/RecordingModal';
 import Tap from '../../src/components/Tap';
 import SunriseHero from '../../src/components/art/SunriseHero';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
+import { ChoiceSheet } from '../../src/components/ChoiceSheet';
 import BrightMark from '../../src/components/art/BrightMark';
 
 export default function TodayScreen() {
@@ -64,6 +66,8 @@ export default function TodayScreen() {
   const [milestone, setMilestone] = useState<number | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [recordingModalOpen, setRecordingModalOpen] = useState(false);
+  // Android has no ActionSheetIOS; the same choices open in ChoiceSheet there
+  const [recordingChoices, setRecordingChoices] = useState<null | { play: () => void; again: () => void; remove: () => void }>(null);
   const [recordedIds, setRecordedIds] = useState<Set<string>>(new Set());
   const playbackRef = useRef<Audio.Sound | null>(null);
   const { isPremium } = usePremium();
@@ -335,6 +339,14 @@ export default function TodayScreen() {
         return next;
       });
     };
+    const again = async () => {
+      await clearRecording();
+      setRecordingModalOpen(true);
+    };
+    if (Platform.OS !== 'ios') {
+      setRecordingChoices({ play: onMicPress, again: () => void again(), remove: () => void clearRecording() });
+      return;
+    }
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: 'Your recording',
@@ -525,6 +537,20 @@ export default function TodayScreen() {
 
       <MilestoneCelebration visible={milestone !== null} milestone={milestone} onClose={() => setMilestone(null)} />
       <StreakCalendar visible={calendarOpen} onClose={() => setCalendarOpen(false)} />
+      <ChoiceSheet
+        visible={recordingChoices !== null}
+        title="Your recording"
+        onClose={() => setRecordingChoices(null)}
+        choices={
+          recordingChoices
+            ? [
+                { label: 'Play', onPress: recordingChoices.play },
+                { label: 'Record again', onPress: recordingChoices.again },
+                { label: 'Delete', destructive: true, onPress: recordingChoices.remove },
+              ]
+            : []
+        }
+      />
       <RecordingModal
         visible={recordingModalOpen}
         affirmationId={current?.id ?? null}

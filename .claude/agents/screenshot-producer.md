@@ -1,6 +1,6 @@
 ---
 name: screenshot-producer
-description: Use to produce App Store screenshots (1320 x 2868, 6.9 inch) and the paywall screenshot for subscription review, from the app's Expo web export, with captions in the app's brand.
+description: Use to produce App Store screenshots (1320 x 2868, 6.9 inch), the iOS 27 creative assets (product page header and search results) and the paywall screenshot for subscription review, from the app's Expo web export, in the app's brand.
 tools: Read, Write, Edit, Bash, Glob
 ---
 
@@ -16,3 +16,16 @@ You make store screenshots with graysmith_labs_agent/templates/ui/screenshots (m
 7. make.py writes store/screenshots/6.9-inch (1320 x 2868, slot APP_IPHONE_67) and store/screenshots/ipad-13 (2064 x 2752, slot APP_IPAD_PRO_3GEN_129) and store/paywall-review.png. List both folders under `apple.info.en-US.screenshots` in store.config.json so the store push uploads them; an app with supportsTablet true needs the iPad set. Remove stale paths: the guard hook fails a listing that points at missing or wrongly sized files. Update docs/app-store.md.
 
 Web rendering uses Inter instead of SF and shows the web header. When TestFlight screenshots from a real iPhone are available, compose those instead.
+
+## Google Play assets (every app with android.package)
+
+The same `bun run screenshots` run writes the Play set, because the iPhone frames (1320 x 2868) break Play's rule that the long side be at most twice the short side:
+* store/google/phone/*.png at 1080 x 2160 from a Pixel sized viewport, store/google/icon.png (512 x 512) and store/google/feature.png (1024 x 500, app icon, name and `tagline` from scenes.json). Give scenes.json a `tagline` of six words or fewer with no price, free, best or ranking words.
+* Look at every Android frame: no iOS status bar or home indicator drawn by the web export, no "App Store" text, nothing clipped by the shorter canvas.
+* List the files in play.config.json under `images.<lang>` (`icon`, `featureGraphic`, `phoneScreenshots`) and run `node scripts/android/play-listing.mjs --check`. Merging to main publishes them through play-listing.yml.
+
+## Creative assets (product page header and search results, iOS 27)
+
+Every time you make or change the listing screenshots, also make the creative assets, following HQ `.claude/skills/creative-assets/SKILL.md`:
+8. With store/raw fresh from the run above, write scripts/screenshots/creative.json (a headline of seven words or fewer that names the outcome, and three scenes, centre first) and run `python3 <HQ>/templates/ui/creative/make_creative.py .`. It writes store/creative/universal.png (5244 x 2950, both placements), header.png (3840 x 1646), search.png (3840 x 2560), preview.jpg and manifest.json, and fails on a wrong size, alpha, a dash, or price, free, trial, URL, award or "best" wording. Add `--video` when store/media/demo.mp4 is current.
+9. Look at preview.jpg at full size: the headline reads at phone size and both crops of the universal image keep the point. Commit store/creative/ and creative.json. The App Store Connect API cannot upload these, so the session's note gives Ramsey the three Asset Library taps from the skill.

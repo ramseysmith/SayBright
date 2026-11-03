@@ -1,42 +1,55 @@
+import { otherAppUrl, purchaseTermsUrl, reviewUrl } from '../utils/stores';
+
 export const SITE_BASE = 'https://graysmithlabs.com/apps';
 
 export const URLS = {
   privacy: `${SITE_BASE}/saybright-privacy.html`,
-  // Apple's standard licensed application end user license agreement
-  terms: 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/',
+  // Apple's standard EULA on iOS, Google Play's terms on Android
+  terms: purchaseTermsUrl,
   support: `${SITE_BASE}/saybright.html#support`,
   home: `${SITE_BASE}/saybright.html`,
-  appStore: 'https://apps.apple.com/us/app/saybright/id6767243151',
-  writeReview: 'https://apps.apple.com/app/id6767243151?action=write-review',
+  // Shared text is read on any phone, so it links the site page, which offers both stores
+  share: `${SITE_BASE}/saybright.html`,
+  writeReview: reviewUrl(),
 };
 
-export const CROSS_PROMO = [
+// playPackage is set once an app is live on Google Play; until then Android users do not see it.
+const OTHER_APPS = [
   {
     id: 'drift',
     icon: '🌙',
     title: 'Drift',
     subtitle: 'Sleep sounds and white noise',
-    url: 'https://apps.apple.com/us/app/drift/id6758258891',
+    appStoreId: '6758258891',
+    playPackage: null as string | null,
   },
   {
     id: 'celebriday',
     icon: '🎉',
     title: 'CelebriDay',
     subtitle: "Discover today's random holidays",
-    url: 'https://apps.apple.com/us/app/celebriday/id6760971240',
+    appStoreId: '6760971240',
+    playPackage: null as string | null,
   },
   {
     id: 'signsnap',
     icon: '✍️',
     title: 'SignSnap',
     subtitle: 'Sign documents instantly',
-    url: 'https://apps.apple.com/us/app/signsnap/id6759199184',
+    appStoreId: '6759199184',
+    playPackage: null as string | null,
   },
   {
     id: 'blitztap',
     icon: '⚡',
     title: 'BlitzTap',
     subtitle: 'Test your reflexes',
-    url: 'https://apps.apple.com/us/app/blitztap/id6759490849',
+    appStoreId: '6759490849',
+    playPackage: null as string | null,
   },
 ];
+
+export const CROSS_PROMO = OTHER_APPS.flatMap(({ appStoreId, playPackage, ...app }) => {
+  const url = otherAppUrl({ appStoreId, playPackage });
+  return url ? [{ ...app, url }] : [];
+});

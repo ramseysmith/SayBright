@@ -36,6 +36,7 @@ import {
   scheduleDailyReminder,
 } from '../../src/services/notifications';
 import { CROSS_PROMO, URLS } from '../../src/constants/urls';
+import { isAndroid, openManageSubscriptions, storeName } from '../../src/utils/stores';
 import {
   deleteRecording,
   getRecordedAffirmationIds,
@@ -183,13 +184,7 @@ export default function SettingsScreen() {
 
   const onPremiumRowPress = () => {
     if (isPremium) {
-      const url =
-        Platform.OS === 'ios'
-          ? 'https://apps.apple.com/account/subscriptions'
-          : 'https://play.google.com/store/account/subscriptions';
-      Linking.openURL(url).catch(() => {
-        toast.show('Could not open subscription settings.');
-      });
+      openManageSubscriptions();
     } else {
       router.push('/paywall?source=settings');
     }
@@ -217,14 +212,14 @@ export default function SettingsScreen() {
         return;
       }
     } catch {
-      // fall through to the App Store page
+      // fall through to the store's review page
     }
     openExternal(URLS.writeReview);
   };
 
   const onShareApp = () => {
     Share.share({
-      message: `SayBright gives me five bright affirmations every morning. ${URLS.appStore}`,
+      message: `SayBright gives me five bright affirmations every morning. ${URLS.share}`,
     }).catch(() => {});
   };
 
@@ -319,6 +314,9 @@ export default function SettingsScreen() {
               color={COLORS.textSecondary}
             />
           </Pressable>
+          {/* Widgets are iOS only (modules/widget-storage is Apple only) */}
+          {isAndroid ? null : (
+          <>
           <View style={styles.divider} />
           <Pressable onPress={onWidgetsPress} style={styles.row}>
             <View style={styles.rowMain}>
@@ -347,6 +345,8 @@ export default function SettingsScreen() {
               />
             )}
           </Pressable>
+          </>
+          )}
           <View style={styles.divider} />
           <Pressable onPress={onRecordingsPress} style={styles.row}>
             <View style={styles.rowMain}>
@@ -387,8 +387,10 @@ export default function SettingsScreen() {
               </Text>
               <Text style={styles.rowSubtitle}>
                 {isPremium
-                  ? 'Manage your subscription in the App Store.'
-                  : 'Every category, no limits, widgets and no ads.'}
+                  ? `Manage your subscription in ${storeName}.`
+                  : isAndroid
+                    ? 'Every category, no limits and no ads.'
+                    : 'Every category, no limits, widgets and no ads.'}
               </Text>
             </View>
             <Ionicons
@@ -447,7 +449,8 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <SectionHeader title="More Apps" />
+        {CROSS_PROMO.length > 0 ? <SectionHeader title="More Apps" /> : null}
+        {CROSS_PROMO.length > 0 ? (
         <View style={[styles.section, styles.crossPromoSection]}>
           {CROSS_PROMO.map((app, idx) => (
             <View key={app.id}>
@@ -470,6 +473,7 @@ export default function SettingsScreen() {
             </View>
           ))}
         </View>
+        ) : null}
 
         <Text style={styles.footer}>SayBright {appVersion}</Text>
       </ScrollView>
