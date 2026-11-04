@@ -224,12 +224,14 @@ function LegalSection({ monthlyPrice, annualPrice, showAnnual, showTrial }: { mo
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg0 },
   flex: { flex: 1 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 4 },
+  // The close button sits 12 points lower than before, clear of the sheet grabber
+  // and the top edge (Ramsey, Nov 3), with a full 44 point target
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingTop: 16 },
   close: {
-    minWidth: 40,
-    height: 40,
-    paddingHorizontal: 10,
-    borderRadius: 20,
+    minWidth: 44,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: C.surfaceOnSkyStrong,
