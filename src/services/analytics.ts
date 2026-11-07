@@ -32,7 +32,8 @@ export type AnalyticsEvent =
   | 'daily_set_finished'
   | 'onboarding_affirmation_said'
   | 'billing_issue_view'
-  | 'billing_issue_tap';
+  | 'billing_issue_tap'
+  | 'onboarding_step';
 
 type EventValue = string | number | boolean | null | undefined;
 
@@ -75,13 +76,14 @@ type PortfolioEvent =
   | 'purchase'
   | 'restore'
   | 'billing_issue_view'
-  | 'billing_issue_tap';
+  | 'billing_issue_tap'
+  | 'onboarding_step';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
 const ID_KEY = 'saybright.analyticsId.v1';
 const posthogEnabled = !!POSTHOG_KEY && !__DEV__ && Platform.OS !== 'web';
-const SAFE_PROPS = ['source', 'plan', 'kind', 'milestone', 'categoryId'] as const;
+const SAFE_PROPS = ['source', 'plan', 'kind', 'milestone', 'categoryId', 'step', 'index'] as const;
 
 function toPortfolioEvent(
   event: AnalyticsEvent,
@@ -119,6 +121,10 @@ function toPortfolioEvent(
     case 'billing_issue_view':
     case 'billing_issue_tap':
       return [[event, { kind: properties?.inGrace ? 'grace' : 'retry' }]];
+    case 'onboarding_step':
+      // Which onboarding step each install reached, so the drop between install
+      // and onboarding_complete can be read step by step (Nov 7 2026)
+      return [['onboarding_step', { step: String(properties?.step ?? 'unknown'), index: Number(properties?.index ?? -1), kind: String(properties?.kind ?? 'view') }]];
     default:
       return [];
   }

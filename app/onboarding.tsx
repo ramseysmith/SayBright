@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -47,6 +47,19 @@ export default function OnboardingScreen() {
     setStep(next);
   };
 
+  // Each step reached is one event, so PostHog shows where installs stop
+  useEffect(() => {
+    trackEvent('onboarding_step', { step, index: STEPS.indexOf(step) });
+  }, [step]);
+
+  // Skip goes straight to the paywall step, which has its own Not now, so nobody
+  // has to finish every step to reach Today (only 2 of 8 installs did, Nov 2)
+  const skip = () => {
+    trackEvent('onboarding_step', { step, index, kind: 'skip' });
+    trackEvent('paywall_shown', { variant: 'refresh', source: 'onboarding' });
+    go('paywall');
+  };
+
   const finish = async () => {
     await setSelectedCategories(selected);
     await updateUserData((current) => ({
@@ -90,7 +103,9 @@ export default function OnboardingScreen() {
                 <View key={s} style={[styles.dot, i === index ? styles.dotOn : null, i < index ? styles.dotDone : null]} />
               ))}
             </View>
-            <View style={styles.back} />
+            <Tap onPress={skip} hitSlop={12} style={styles.skip} accessibilityRole="button" accessibilityLabel="Skip">
+              <Text style={styles.skipText}>Skip</Text>
+            </Tap>
           </View>
 
           <Animated.View key={step} style={styles.flex} entering={FadeIn.duration(260)} exiting={FadeOut.duration(120)}>
@@ -282,6 +297,8 @@ const styles = StyleSheet.create({
   column: { flex: 1, width: '100%', maxWidth: MAX_CONTENT_WIDTH, paddingHorizontal: 22 },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 44 },
   back: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
+  skip: { minWidth: 44, height: 44, alignItems: 'flex-end', justifyContent: 'center' },
+  skipText: { color: C.textSecondary, fontSize: 15, fontWeight: '600' },
   dots: { flexDirection: 'row', gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.borderStrong },
   dotOn: { width: 22, backgroundColor: C.accent },
