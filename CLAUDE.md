@@ -117,6 +117,11 @@ ramseysmith/graysmith_labs_agent (PLAN.md, CLAUDE.md, data/latest.json).
   smoke` and the core flow pass on the local emulator for the same git sha
   (HQ android-local-test skill). Cloud sessions cannot reach adb: queue
   "Android local check needed: <app> <sha>" in the HQ inbox instead.
+* Free local tools first: build and test with these scripts, never EAS cloud
+  builds, Expo sandboxes or EAS simulators (they cost money).
+* The same for iOS: no TestFlight build until `scripts/ios/simulator.sh smoke`
+  and the core flow pass on the local simulator for the same sha (HQ
+  ios-local-test skill); cloud sessions queue "iOS local check needed".
 * The subagents, the guard hook, its settings and this section are synced from HQ
   (listed in .claude/synced.json). Change them in HQ templates/app and run
   `node scripts/claude_assets.mjs sync` there, or the next sync overwrites the edit.

@@ -11,6 +11,7 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 2. `npx expo export --platform ios` succeeds (prefix `EXPO_OFFLINE=1 CI=1` if the Expo API is unreachable).
 3. app.json has `extra.eas.projectId`, `owner`, `ios.config.usesNonExemptEncryption: false`, and `ios.supportsTablet: false` unless the iPad layout is real (Apple reviews on iPad otherwise). store.config.js takes its version from app.json.
 3b. Git tree is clean and pushed; .env.local has no screenshot demo flags.
+3c. Local simulator gate: `build/ios-smoke.json` exists, its `result` is `pass` and its `sha` equals `git rev-parse --short HEAD`. Missing, failed or for another sha is a FAIL with the fix `scripts/ios/simulator.sh boot && scripts/ios/simulator.sh build && scripts/ios/simulator.sh install && scripts/ios/simulator.sh smoke` (ios-local-test skill; cloud sessions cannot run it, so the fix there is an inbox item asking for a local iOS check).
 
 ## Purchases (RevenueCat)
 4. The paywall shows price, period, trial length and renewal terms near the buy button, plus Restore purchases, Terms of Use and Privacy Policy links.

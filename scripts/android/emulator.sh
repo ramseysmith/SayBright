@@ -2,7 +2,9 @@
 # Drive the local Android emulator from the terminal, the same way in every app:
 #   scripts/android/emulator.sh boot | build | install [apk] | launch | shot [name]
 #   scripts/android/emulator.sh tap X Y | type "text" | key BACK|HOME|ENTER | swipe X1 Y1 X2 Y2
-#   scripts/android/emulator.sh ui | logs | smoke | stop
+#   scripts/android/emulator.sh ui | logs | smoke | stop | devices
+# A phone over USB: ANDROID_SERIAL=phone (first USB device) or its serial, e.g.
+#   ANDROID_SERIAL=phone scripts/android/emulator.sh logs
 # Run it from the app repo root. Local builds only: it never starts an EAS
 # cloud build. `smoke` is the gate before any Android EAS build or Play upload
 # (android-local-test skill). It writes build/android-smoke.json with the git
@@ -46,11 +48,34 @@ emu_serial() {
   adb devices 2>/dev/null | awk '$1 ~ /^emulator-/ && $2 == "device" { print $1; exit }'
 }
 
+phone_serial() {
+  adb devices 2>/dev/null | awk 'NR > 1 && $1 != "" && $1 !~ /^emulator-/ { print $1; exit }'
+}
+
+# Picks the target: ANDROID_SERIAL when set (a serial, or "phone" for the first
+# USB device), otherwise the running emulator.
 need_device() {
-  local s
-  s="$(emu_serial)"
-  [ -n "$s" ] || die "No emulator running. Fix: scripts/android/emulator.sh boot"
+  local s state
+  if [ -n "${ANDROID_SERIAL:-}" ]; then
+    s="$ANDROID_SERIAL"
+    [ "$s" = phone ] && s="$(phone_serial)"
+    [ -n "$s" ] || die "No phone over USB. Plug it in with USB debugging on (scripts/android/emulator.sh devices)"
+    state="$(adb devices 2>/dev/null | awk -v s="$s" '$1 == s { print $2 }')"
+    case "$state" in
+      device) ;;
+      unauthorized) die "$s is unauthorized. Unlock the phone and tap Allow USB debugging (tick Always allow), then run this again" ;;
+      "") die "$s is not attached (scripts/android/emulator.sh devices)" ;;
+      *) die "$s is $state, not ready" ;;
+    esac
+  else
+    s="$(emu_serial)"
+    [ -n "$s" ] || die "No emulator running. Fix: scripts/android/emulator.sh boot"
+  fi
   export ANDROID_SERIAL="$s"
+}
+
+cmd_devices() {
+  adb devices -l | sed 1d | awk 'NF { print }'
 }
 
 app_package() {
@@ -74,6 +99,7 @@ app_version() {
 cmd_boot() {
   local window=0
   [ "${1:-}" = "--window" ] && window=1
+  case "${ANDROID_SERIAL:-}" in ""|emulator-*) ;; *) say "ANDROID_SERIAL is a phone; nothing to boot"; need_device; return 0 ;; esac
   if [ -n "$(emu_serial)" ]; then
     say "Emulator already running: $(emu_serial)"
   else
@@ -303,7 +329,7 @@ cmd_smoke() {
   local result=pass
   [ -n "$failures" ] && result=fail
   cat > "$OUT_DIR/android-smoke.json" <<EOF
-{"result":"$result","sha":"$sha","version":"$version","package":"$pkg","avd":"$AVD","date":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","failures":"${failures# }","shots":"$SHOTS_DIR"}
+{"result":"$result","sha":"$sha","version":"$version","package":"$pkg","target":"$ANDROID_SERIAL","avd":"$AVD","date":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","failures":"${failures# }","shots":"$SHOTS_DIR"}
 EOF
   say "Screenshots: $SHOTS_DIR/smoke_cold.png $SHOTS_DIR/smoke_resume.png (Read both)"
   if [ "$result" = pass ]; then
@@ -347,6 +373,7 @@ main() {
     logs) cmd_logs "$@" ;;
     smoke) cmd_smoke "$@" ;;
     stop) cmd_stop "$@" ;;
+    devices) cmd_devices "$@" ;;
     -h|--help|help) usage 0 ;;
     *) echo "Unknown command: $cmd" >&2; usage 1 ;;
   esac

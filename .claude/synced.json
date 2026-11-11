@@ -17,6 +17,7 @@
     "scripts/android/doctor.mjs": "templates/app/scripts/android/doctor.mjs",
     "scripts/android/emulator.sh": "templates/app/scripts/android/emulator.sh",
     "scripts/android/play-listing.mjs": "templates/app/scripts/android/play-listing.mjs",
-    "scripts/android/play.sh": "templates/app/scripts/android/play.sh"
+    "scripts/android/play.sh": "templates/app/scripts/android/play.sh",
+    "scripts/ios/simulator.sh": "templates/app/scripts/ios/simulator.sh"
   }
 }
