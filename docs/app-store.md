@@ -55,3 +55,19 @@ Variant B, own voice angle:
 Variant C, confidence angle:
 
 > Build confidence one sentence at a time. The whole Confidence category is open to everyone, and Premium starts with a free week for eligible new subscribers.
+
+## In app event: Gratitude Season (Nov 11 2026, ready to create)
+
+Only after 1.4.0 is live, because the pack arrives in 1.4.0. App Store Connect,
+SayBright, In App Events, Create.
+
+* Reference name: Gratitude Season 2026
+* Badge: New Season. Purpose: Attract new users and Bring back lapsed users
+* Event name (30): Gratitude Season
+* Short description (50): 15 new affirmations for the month of thanks
+* Long description (120): Fifteen fresh gratitude affirmations for November, open to everyone. Save the ones that land and share them.
+* Start: the day 1.4.0 goes live. End: Nov 30 2026 11:59 PM. Publish: same as start
+* Event card: store/events/gratitude-season-card.png (1920 x 1080)
+* Details page: store/events/gratitude-season-detail.png (1080 x 1920)
+* Deep link: none (Browse shows the pack first)
+* Next: Rest and Reflect (Dec 1 to 31), Fresh Start (Jan 1 to 31), both already in src/data/seasonal.ts
