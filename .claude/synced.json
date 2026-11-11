@@ -15,6 +15,7 @@
     ".github/workflows/play-listing.yml": "templates/app/.github/workflows/play-listing.yml",
     "CLAUDE.md#Graysmith Labs HQ": "templates/app/CLAUDE.hq.md",
     "scripts/android/doctor.mjs": "templates/app/scripts/android/doctor.mjs",
+    "scripts/android/emulator.sh": "templates/app/scripts/android/emulator.sh",
     "scripts/android/play-listing.mjs": "templates/app/scripts/android/play-listing.mjs",
     "scripts/android/play.sh": "templates/app/scripts/android/play.sh"
   }

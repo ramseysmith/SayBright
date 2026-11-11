@@ -113,6 +113,10 @@ ramseysmith/graysmith_labs_agent (PLAN.md, CLAUDE.md, data/latest.json).
   through src/lib/stores.ts (or the app's copy); the Play listing lives in
   play.config.json and `npm run build:play` sends a build to Play internal
   testing. Package is com.graysmithlabs.<app> and never changes.
+* No Android EAS build and no Play upload until `scripts/android/emulator.sh
+  smoke` and the core flow pass on the local emulator for the same git sha
+  (HQ android-local-test skill). Cloud sessions cannot reach adb: queue
+  "Android local check needed: <app> <sha>" in the HQ inbox instead.
 * The subagents, the guard hook, its settings and this section are synced from HQ
   (listed in .claude/synced.json). Change them in HQ templates/app and run
   `node scripts/claude_assets.mjs sync` there, or the next sync overwrites the edit.

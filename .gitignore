@@ -40,3 +40,6 @@ yarn-error.*
 /ios
 /android
 store/raw/
+
+# Local Android emulator builds, screenshots and logs (scripts/android/emulator.sh)
+build/

@@ -156,7 +156,7 @@ else {
   else if (sub.serviceAccountKeyPath) warn('eas', 'serviceAccountKeyPath points at a file; prefer the Google service account key stored in EAS credentials so CI needs no file');
   else pass('eas', `submit to Play track ${sub.track || 'internal'}`);
   const apk = Object.entries(eas.build || {}).find(([, p]) => p.android?.buildType === 'apk');
-  if (!apk) warn('eas', 'no build profile makes an APK; the android-sim profile lets agents run the app in the EAS Android emulator');
+  if (!apk) warn('eas', 'no build profile makes an APK; the android-sim profile lets agents run the app on the local emulator (scripts/android/emulator.sh build)');
   if (eas.cli?.appVersionSource === 'local' && prodBuild.autoIncrement === false) {
     const vc = cfg?.android?.versionCode;
     if (!vc) fail('eas', 'appVersionSource is local and autoIncrement is off, but android.versionCode is not set');
@@ -257,7 +257,12 @@ if (args.has('--prebuild')) {
       timeout: 300000,
     });
     const manifest = readFileSync(join(tmp, 'android/app/src/main/AndroidManifest.xml'), 'utf8');
-    const perms = [...manifest.matchAll(/uses-permission[^>]*android:name="([^"]+)"/g)].map((m) => m[1]);
+    // blockedPermissions writes tools:node="remove" entries; those are removed at merge, not requested
+    const perms = [...manifest.matchAll(/<uses-permission\b[^>]*>/g)]
+      .map((m) => m[0])
+      .filter((tag) => !/tools:node="remove"/.test(tag))
+      .map((tag) => /android:name="([^"]+)"/.exec(tag)?.[1])
+      .filter(Boolean);
     const allowed = new Set(Object.keys(cfg?.extra?.android?.allowPermissions || {}));
     for (const p of perms) if (POLICY_PERMISSIONS[p] && !allowed.has(p)) fail('manifest', `merged manifest requests ${p}: ${POLICY_PERMISSIONS[p]}. Add it to android.blockedPermissions`);
     const declare = perms.filter((p) => DECLARE_PERMISSIONS[p]).map((p) => DECLARE_PERMISSIONS[p]);
