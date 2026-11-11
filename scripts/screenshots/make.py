@@ -71,6 +71,24 @@ def capture(browser, scene, device):
     page.clock.set_fixed_time(datetime.datetime.fromisoformat(scene.get('clock', cfg['clock'])))
     page.set_default_timeout(6000)
     page.on('pageerror', lambda e: errors.append(f"{scene['name']}: {e}"))
+    if scene.get('mock'):
+        # A store frame drawn from a static page in mock/ (the app's lock screen and
+        # home screen widgets, which the web export cannot render). The icon is the
+        # real app icon; the text checks below still run.
+        html = open(os.path.join(HERE, 'mock', scene['mock'])).read()
+        icon = base64.b64encode(open(os.path.join(ROOT, 'assets', 'icon.png'), 'rb').read()).decode()
+        page.set_content(html.replace('ICON', 'data:image/png;base64,' + icon))
+        page.set_viewport_size({'width': w, 'height': h})
+        page.wait_for_timeout(400)
+        page.evaluate("([w]) => { document.body.style.zoom = (w / 440).toString(); }", [w])
+        page.wait_for_timeout(200)
+        hit = PRICE.search(page.evaluate('document.body.innerText'))
+        if hit:
+            sys.exit(f"{scene['name']} mock shows price text: {hit.group(0)!r}")
+        path = os.path.join(RAW, f"{device}-{scene['name']}.png")
+        page.screenshot(path=path)
+        ctx.close()
+        return path
     base = urls[scene.get('build', 'free')]
     page.goto(base + '/__seed')
     storage = {} if scene.get('fresh') else cfg['storage']

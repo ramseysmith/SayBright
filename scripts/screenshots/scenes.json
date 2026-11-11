@@ -24,7 +24,15 @@
   },
   "scenes": [
     {
-      "name": "1-today",
+      "name": "1-lock",
+      "mock": "lockscreen.html",
+      "title": "Affirmations on your Lock Screen",
+      "subtitle": "Your daily affirmation, every time you look",
+      "theme": "dawn",
+      "steps": []
+    },
+    {
+      "name": "2-today",
       "build": "free",
       "title": "Start every day on your side",
       "subtitle": "Five affirmations picked for you",
@@ -32,7 +40,15 @@
       "steps": []
     },
     {
-      "name": "2-voice",
+      "name": "3-widgets",
+      "mock": "homescreen.html",
+      "title": "Widgets that brighten your day",
+      "subtitle": "A fresh affirmation on your Home Screen",
+      "theme": "dusk",
+      "steps": []
+    },
+    {
+      "name": "4-voice",
       "build": "premium",
       "clock": "2026-10-18T19:20:00",
       "title": "Hear it in your own voice",
@@ -45,37 +61,17 @@
       ]
     },
     {
-      "name": "3-browse",
+      "name": "5-season",
       "build": "premium",
-      "path": "/browse",
-      "title": "Ten categories to explore",
-      "subtitle": "Calm, confidence, career, love and more",
+      "path": "/category/season_gratitude",
+      "clock": "2026-11-12T08:12:00",
+      "title": "New affirmations every season",
+      "subtitle": "Packs made for the time of year",
       "theme": "dawn",
       "steps": []
     },
     {
-      "name": "4-first",
-      "build": "free",
-      "fresh": true,
-      "path": "/onboarding",
-      "title": "Say it out loud",
-      "subtitle": "Your first affirmation in seconds",
-      "theme": "dawn",
-      "steps": [
-        {
-          "click": "Get started"
-        },
-        {
-          "click": "Continue"
-        },
-        {
-          "click": "I said it",
-          "wait": 900
-        }
-      ]
-    },
-    {
-      "name": "5-streak",
+      "name": "6-streak",
       "build": "free",
       "title": "Build a daily streak",
       "subtitle": "Gentle reminders keep you going",
@@ -88,7 +84,16 @@
       ]
     },
     {
-      "name": "6-yours",
+      "name": "7-browse",
+      "build": "premium",
+      "path": "/browse",
+      "title": "Ten categories to explore",
+      "subtitle": "Calm, confidence, career, love and more",
+      "theme": "dawn",
+      "steps": []
+    },
+    {
+      "name": "8-yours",
       "build": "premium",
       "path": "/my-affirmations",
       "title": "Write affirmations in your words",

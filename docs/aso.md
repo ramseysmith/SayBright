@@ -107,3 +107,35 @@ Motivation since Oct 15. The search pass was thin; the Oct 15 table stands.
   after the check, test a first frame that shows saying it aloud.
 * Check on Nov 10 2026: page views to installs for the 14 days after 1.3.1 goes
   live versus 0 of 22 for Oct 20 to 27.
+
+
+## Nov 11 2026 sprint (1.4.0)
+
+Why: 7 days to Nov 11 read 1,345 impressions, 10 page views, 1 install. People
+see SayBright in search and do not tap (0.7% tap through), so the search result
+card is the leak: icon, title, subtitle and the first three screenshots.
+
+### What the winners do (App Store pages read Nov 11 2026)
+
+| App | Subtitle | Ratings | First three frames |
+| --- | --- | --- | --- |
+| I am (Monkey Taps, id874656917) | Positive widgets & motivation | 4.8, 739K, #47 Health and Fitness | Lock Screen with a notification, one big affirmation, widgets on the Home Screen and Apple Watch |
+| Motivation (Monkey Taps, id876080126) | Inspirational positive widgets | about 1M | Lock Screen, a big quote with a one week streak row, widgets |
+| ThinkUp (id906660772) | Motivation & Positive Thoughts | 4.7, 7.5K | category grid, press logos, recording in your voice |
+
+Pattern: the two category leaders both name widgets in the subtitle and open on
+the Lock Screen, so the result card shows the habit in its real place before
+anyone taps. Captions are two to four words, the affirmation text is large, and
+release notes ship weekly (I am lists about 24 versions from June to October).
+
+### Changes
+
+* Subtitle Grow Self Love, Think Positive to Positive Widgets & Self Love (28).
+* Keywords: widget out (now in the subtitle), lock and screen in, quote out.
+* Screenshots: 1 Lock Screen with the real lock screen widget and the real
+  morning reminder, 2 Today, 3 Home Screen widgets (the real large and medium
+  widget layouts), then voice, Gratitude Season, streak, Browse, your own.
+  Frames 1 and 3 are drawn from scripts/screenshots/mock because the web export
+  cannot render widgets; they copy targets/widget/index.swift.
+* Description opens on the Lock Screen; promo text leads with Gratitude Season.
+* Check Nov 25 2026: impressions to page views (was 0.7%), page to install.
