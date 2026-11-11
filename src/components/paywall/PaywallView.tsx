@@ -18,13 +18,14 @@ const HEADLINES: Record<string, { title: string; sub: string }> = {
   browse_locked: { title: 'Open every category', sub: 'Career, calm, wealth, love and more, all of them.' },
   record_voice: { title: 'Hear it in your voice', sub: 'Record your affirmations and play them back each day.' },
   widgets: { title: 'Brighten your home screen', sub: 'A fresh affirmation on your home screen, every day.' },
+  streak_save: { title: 'Keep your streak alive', sub: 'Premium saves a missed day once a week. Start today and your streak comes back.' },
   onboarding: { title: 'Your first week is free', sub: 'Everything in SayBright, free for 7 days.' },
 };
 const DEFAULT_HEADLINE = { title: 'Say it brighter, every day', sub: 'Every category, no limits, no ads.' };
 
 const BENEFITS: { icon: string; title: string; body: string }[] = [
   { icon: 'confidence', title: 'All 10 categories', body: '340+ affirmations, from calm to career' },
-  { icon: 'morning', title: 'No daily limit, no ads', body: 'Swipe as long as you like' },
+  { icon: 'morning', title: 'No daily limit, no ads', body: 'Plus a streak save for one missed day a week' },
   { icon: 'creativity', title: 'Widgets and your own voice', body: 'Home screen widgets and affirmations recorded in your voice' },
 ];
 

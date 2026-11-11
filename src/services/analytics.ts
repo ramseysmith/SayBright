@@ -33,7 +33,10 @@ export type AnalyticsEvent =
   | 'onboarding_affirmation_said'
   | 'billing_issue_view'
   | 'billing_issue_tap'
-  | 'onboarding_step';
+  | 'onboarding_step'
+  | 'streak_saved'
+  | 'streak_save_offer'
+  | 'seasonal_opened';
 
 type EventValue = string | number | boolean | null | undefined;
 
@@ -77,7 +80,10 @@ type PortfolioEvent =
   | 'restore'
   | 'billing_issue_view'
   | 'billing_issue_tap'
-  | 'onboarding_step';
+  | 'onboarding_step'
+  | 'day_open'
+  | 'streak_save'
+  | 'seasonal_open';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
@@ -104,6 +110,16 @@ function toPortfolioEvent(
       return [['success_moment', { kind: 'recording' }]];
     case 'custom_affirmation_created':
       return [['success_moment', { kind: 'custom' }]];
+    case 'streak_incremented':
+      // One per calendar day opened; index is the day in a row, so day 2 and
+      // day 7 return can be read per install (1.4.0)
+      return [['day_open', { index: Number(properties?.current ?? 0) }]];
+    case 'streak_saved':
+      return [['streak_save', { kind: 'saved', index: Number(properties?.current ?? 0) }]];
+    case 'streak_save_offer':
+      return [['streak_save', { kind: String(properties?.kind ?? 'view'), index: Number(properties?.lost ?? 0) }]];
+    case 'seasonal_opened':
+      return [['seasonal_open', { source: String(properties?.source ?? 'unknown') }]];
     case 'streak_milestone':
       return [['success_moment', { kind: 'streak' }]];
     case 'daily_set_finished':

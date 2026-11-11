@@ -14,6 +14,10 @@ export interface UserData {
     longest: number;
     lastCheckIn: string | null;
     history: string[];
+    /** Day a Premium streak save was last used (one every 7 days), 1.4.0 */
+    lastSave?: string | null;
+    /** A streak that reset today after one missed day: Premium bought today restores it */
+    lapsed?: { count: number; on: string } | null;
   };
   preferences: {
     reminderEnabled: boolean;

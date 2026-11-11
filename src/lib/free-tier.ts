@@ -15,5 +15,6 @@ export const OPEN_CATEGORY_ID = 'confidence';
 export const PREVIEW_COUNT = 3;
 
 export function isCategoryOpen(categoryId: string, isPremium: boolean): boolean {
-  return isPremium || categoryId === OPEN_CATEGORY_ID;
+  // Seasonal packs (src/data/seasonal.ts) are free for everyone
+  return isPremium || categoryId === OPEN_CATEGORY_ID || categoryId.startsWith('season_');
 }

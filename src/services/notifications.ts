@@ -1,5 +1,5 @@
 import * as Notifications from 'expo-notifications';
-import { cancelAllExceptTrialReminder } from './trial';
+import { cancelAllExceptTrialReminder, STREAK_NUDGE_ID } from './trial';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import { getDailyAffirmations, getDateKey } from '../utils/affirmations';
@@ -121,8 +121,41 @@ export async function refreshScheduledReminders(): Promise<void> {
   }
 }
 
+/**
+ * The streak nudge (1.4.0): one note at 8 PM tomorrow that only arrives if the
+ * app was not opened that day, because every check in moves it a day on. Only
+ * for people who turned reminders on, with a streak of two or more, and whose
+ * own reminder is not already in the evening.
+ */
+export async function scheduleStreakNudge(streak: number): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {});
+    const data = await getUserData();
+    if (!data.preferences.reminderEnabled || streak < 2) return;
+    const reminderHour = parseInt(data.preferences.reminderTime.split(':')[0], 10);
+    if (!Number.isNaN(reminderHour) && reminderHour >= 18) return;
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== 'granted') return;
+    const fireDate = new Date();
+    fireDate.setDate(fireDate.getDate() + 1);
+    fireDate.setHours(20, 0, 0, 0);
+    await Notifications.scheduleNotificationAsync({
+      identifier: STREAK_NUDGE_ID,
+      content: {
+        title: `Your ${streak} day streak is waiting`,
+        body: 'One affirmation before midnight keeps it going.',
+        data: { screen: 'today', kind: 'streak_nudge' },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: fireDate },
+    });
+  } catch (error) {
+    console.warn('Failed to schedule the streak nudge', error);
+  }
+}
+
 export async function cancelAllReminders(): Promise<void> {
   try {
+    await Notifications.cancelScheduledNotificationAsync(STREAK_NUDGE_ID).catch(() => {});
     await cancelAllExceptTrialReminder();
   } catch {
     // ignore

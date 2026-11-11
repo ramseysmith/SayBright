@@ -10,6 +10,8 @@ import { FONTS } from '../../src/constants/theme';
 import { C, CATEGORY_PALETTES, MAX_CONTENT_WIDTH, RADIUS } from '../../src/theme/colors';
 import { usePremium } from '../../src/context/PremiumContext';
 import { isCategoryOpen } from '../../src/lib/free-tier';
+import { getActivePack } from '../../src/data/seasonal';
+import { trackEvent } from '../../src/services/analytics';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import Tap from '../../src/components/Tap';
 
@@ -40,6 +42,16 @@ export default function BrowseScreen() {
     return out;
   }, []);
 
+  // This month's free pack, hidden while searching
+  const pack = useMemo(() => getActivePack(), []);
+  const packPal = pack ? CATEGORY_PALETTES[pack.art] ?? CATEGORY_PALETTES.confidence : null;
+  const openPack = () => {
+    if (!pack) return;
+    Haptics.selectionAsync().catch(() => {});
+    trackEvent('seasonal_opened', { source: 'browse' });
+    router.push({ pathname: '/category/[id]', params: { id: pack.id } });
+  };
+
   const open = (cat: Category) => {
     Haptics.selectionAsync().catch(() => {});
     router.push({ pathname: '/category/[id]', params: { id: cat.id } });
@@ -67,6 +79,20 @@ export default function BrowseScreen() {
             />
           </View>
           <ScrollView contentContainerStyle={styles.gridContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            {pack && packPal && !query.trim() ? (
+              <Tap onPress={openPack} style={styles.pack} accessibilityRole="button" accessibilityLabel={`${pack.name}, ${pack.texts.length} new affirmations this month, free`}>
+                <LinearGradient colors={[packPal.from, packPal.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                <View style={styles.glyph}>
+                  <CategoryIcon name={pack.art} size={30} color={packPal.ink} />
+                </View>
+                <View style={styles.packText}>
+                  <Text style={[styles.packKicker, { color: packPal.ink }]}>New this month</Text>
+                  <Text style={[styles.name, { color: packPal.ink }]}>{pack.name}</Text>
+                  <Text style={[styles.count, { color: packPal.ink }]}>{pack.blurb}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={packPal.ink} />
+              </Tap>
+            ) : null}
             <View style={[styles.grid, { gap }]}>
               {filtered.map((cat) => {
                 const pal = CATEGORY_PALETTES[cat.id] ?? CATEGORY_PALETTES.confidence;
@@ -133,6 +159,9 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, fontFamily: FONTS.bodyRegular, fontSize: 16, color: C.text },
   gridContent: { paddingTop: 16, paddingBottom: 32 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  pack: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14, borderRadius: RADIUS.md, overflow: 'hidden', marginBottom: 12 },
+  packText: { flex: 1 },
+  packKicker: { fontFamily: FONTS.bodyBold, fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.85, marginBottom: 2 },
   tile: { aspectRatio: 1, borderRadius: RADIUS.md, padding: 14, overflow: 'hidden', justifyContent: 'space-between' },
   tileTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   glyph: {

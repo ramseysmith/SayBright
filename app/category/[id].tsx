@@ -9,7 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { Affirmation } from '../../src/data/affirmations';
 import { FONTS } from '../../src/constants/theme';
 import { C, CATEGORY_PALETTES, MAX_CONTENT_WIDTH, RADIUS } from '../../src/theme/colors';
-import { getAffirmationsByCategory, getCategoryById } from '../../src/utils/affirmations';
+import { artKey, getAffirmationsByCategory, getCategoryById } from '../../src/utils/affirmations';
 import { getUserData, toggleFavorite } from '../../src/services/storage';
 import { useShare } from '../../src/context/ShareContext';
 import { trackEvent } from '../../src/services/analytics';
@@ -33,7 +33,7 @@ export default function CategoryDetailScreen() {
   const contentWidth = Math.min(width, MAX_CONTENT_WIDTH);
   const unlocked = id ? isCategoryOpen(id, isPremium) : false;
   const items = unlocked ? all : all.slice(0, PREVIEW_COUNT);
-  const pal = (id && CATEGORY_PALETTES[id]) || CATEGORY_PALETTES.confidence;
+  const pal = (id && CATEGORY_PALETTES[artKey(id)]) || CATEGORY_PALETTES.confidence;
 
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -106,7 +106,7 @@ export default function CategoryDetailScreen() {
             ListHeaderComponent={
               <View style={styles.titleBlock}>
                 <View style={styles.glyph}>
-                  <CategoryIcon name={category.id} size={36} color={pal.ink} />
+                  <CategoryIcon name={artKey(category.id)} size={36} color={pal.ink} />
                 </View>
                 <Text style={[styles.title, { color: pal.ink }]}>{category.name}</Text>
                 <Text style={[styles.count, { color: pal.ink }]}>

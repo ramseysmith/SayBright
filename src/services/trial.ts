@@ -19,12 +19,15 @@ import Purchases, {
 /** Fixed id so the daily reminder code can keep this one when it reschedules */
 export const TRIAL_REMINDER_ID = 'trial-ending-reminder';
 
-/** Cancels every scheduled notification except the trial ending reminder. */
+/** The evening streak nudge (src/services/notifications.ts) manages itself */
+export const STREAK_NUDGE_ID = 'streak-at-risk';
+
+/** Cancels every scheduled notification except the trial ending reminder and the streak nudge. */
 export async function cancelAllExceptTrialReminder(): Promise<void> {
   const scheduled = await Notifications.getAllScheduledNotificationsAsync();
   await Promise.all(
     scheduled
-      .filter((n) => n.identifier !== TRIAL_REMINDER_ID)
+      .filter((n) => n.identifier !== TRIAL_REMINDER_ID && n.identifier !== STREAK_NUDGE_ID)
       .map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)),
   );
 }

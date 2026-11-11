@@ -4,6 +4,7 @@ import {
   CATEGORIES,
   Category,
 } from '../data/affirmations';
+import { SEASONAL_AFFIRMATIONS, SEASON_COLOR, SEASON_ICON, getSeasonalPack, isSeasonalId, packAffirmations, packAsCategory } from '../data/seasonal';
 
 export function getAffirmationsByCategories(
   categoryIds: string[]
@@ -13,10 +14,18 @@ export function getAffirmationsByCategories(
 }
 
 export function getAffirmationsByCategory(categoryId: string): Affirmation[] {
+  if (isSeasonalId(categoryId)) {
+    const pack = getSeasonalPack(categoryId);
+    return pack ? packAffirmations(pack) : [];
+  }
   return AFFIRMATIONS.filter((a) => a.categoryId === categoryId);
 }
 
 export function getCategoryById(id: string): Category | undefined {
+  if (isSeasonalId(id)) {
+    const pack = getSeasonalPack(id);
+    return pack ? packAsCategory(pack) : undefined;
+  }
   return CATEGORIES.find((c) => c.id === id);
 }
 
@@ -29,11 +38,13 @@ export interface DisplayInfo {
 export function getDisplayInfo(id: string): DisplayInfo | undefined {
   const cat = CATEGORIES.find((c) => c.id === id);
   if (cat) return { icon: cat.icon, name: cat.name, color: cat.color };
+  const pack = getSeasonalPack(id);
+  if (pack) return { icon: SEASON_ICON, name: pack.name, color: SEASON_COLOR };
   return undefined;
 }
 
 export function getAffirmationById(id: string): Affirmation | undefined {
-  return AFFIRMATIONS.find((a) => a.id === id);
+  return AFFIRMATIONS.find((a) => a.id === id) ?? SEASONAL_AFFIRMATIONS.find((a) => a.id === id);
 }
 
 export function shuffle<T>(array: T[]): T[] {
@@ -104,4 +115,9 @@ export function hexWithAlpha(hex: string, alpha: number): string {
     .toString(16)
     .padStart(2, '0');
   return `${hex}${a}`;
+}
+
+/** The glyph and palette key for a category id; a seasonal pack borrows one. */
+export function artKey(categoryId: string): string {
+  return getSeasonalPack(categoryId)?.art ?? categoryId;
 }

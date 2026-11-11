@@ -77,6 +77,14 @@ reference). Build on it; do not revert to the old gold and emoji look.
   everyone (it always was). Premium: all categories, no limit, widgets, voice
   recordings, no ads. Nothing that was free before 1.3.0 moved behind Premium, so
   there is no legacy access flag.
+* 1.4.0 return hooks: seasonal packs (src/data/seasonal.ts, free for everyone, one
+  per month it runs, shown in Browse and on the end of day card through the
+  category route), the streak save (src/services/streak.ts: after exactly one
+  missed day on a streak of three or more, Premium keeps the streak, once every
+  seven days; a free user sees the offer on Today that day, paywall source
+  streak_save, and Premium started that day restores it) and the 8 PM streak nudge
+  (scheduleStreakNudge: fires only on a day the app was not opened, follows the
+  reminder setting). PostHog day_open carries the day in a row for return rates.
 * Ads: interstitials only through `maybeShowInterstitial` (src/lib/ad-policy.ts):
   never before a finished daily set, one per session, not in the first two
   minutes. ATT is asked after onboarding; ads are personalized only when allowed.

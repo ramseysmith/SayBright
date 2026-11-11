@@ -6,62 +6,91 @@ export interface StreakResult {
   longest: number;
   isNewDay: boolean;
   milestone: number | null;
+  /** Premium used its weekly streak save on this check in */
+  saved: boolean;
+  /** The streak that reset today after one missed day, for the save offer; null when none */
+  lapsed: number | null;
 }
 
 export const STREAK_MILESTONES = [7, 14, 30, 60, 90, 180, 365];
 
-function getYesterdayKey(): string {
+function keyDaysAgo(days: number): string {
   const d = new Date();
-  d.setDate(d.getDate() - 1);
+  d.setDate(d.getDate() - days);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export async function checkInToday(): Promise<StreakResult> {
+/** A streak this long or longer is worth saving */
+export const STREAK_SAVE_MIN = 3;
+const SAVE_EVERY_DAYS = 7;
+
+function daysBetween(fromKey: string, toKey: string): number {
+  const [fy, fm, fd] = fromKey.split('-').map(Number);
+  const [ty, tm, td] = toKey.split('-').map(Number);
+  return Math.round((new Date(ty, tm - 1, td).getTime() - new Date(fy, fm - 1, fd).getTime()) / 86400000);
+}
+
+function saveAvailable(lastSave: string | null | undefined, today: string): boolean {
+  return !lastSave || daysBetween(lastSave, today) >= SAVE_EVERY_DAYS;
+}
+
+/**
+ * One check in per calendar day. Yesterday continues the streak; anything
+ * older restarts it, with one exception (1.4.0, the streak save): after exactly
+ * one missed day on a streak of three or more, Premium keeps the streak going,
+ * at most once every seven days. A free user's streak restarts, and the lost
+ * count is kept for the rest of that day (`lapsed`), so starting Premium the
+ * same day brings it back. Called again when Premium changes.
+ */
+export async function checkInToday(isPremium = false): Promise<StreakResult> {
   const data = await getUserData();
   const today = getTodayKey();
-  const yesterday = getYesterdayKey();
+  const { streak } = data;
 
-  if (data.streak.lastCheckIn === today) {
+  if (streak.lastCheckIn === today) {
+    // Premium started after today's reset: give the streak back
+    if (isPremium && streak.lapsed && streak.lapsed.on === today && saveAvailable(streak.lastSave, today)) {
+      const restored = streak.lapsed.count + 1;
+      const longest = Math.max(restored, streak.longest);
+      await setUserData({ ...data, streak: { ...streak, current: restored, longest, lastSave: today, lapsed: null } });
+      return { current: restored, longest, isNewDay: false, milestone: null, saved: true, lapsed: null };
+    }
     return {
-      current: data.streak.current,
-      longest: data.streak.longest,
+      current: streak.current,
+      longest: streak.longest,
       isNewDay: false,
       milestone: null,
+      saved: false,
+      lapsed: !isPremium && streak.lapsed && streak.lapsed.on === today ? streak.lapsed.count : null,
     };
   }
 
-  let newCurrent: number;
-  if (data.streak.lastCheckIn === yesterday) {
-    newCurrent = data.streak.current + 1;
-  } else {
-    newCurrent = 1;
+  const missedOne = streak.lastCheckIn === keyDaysAgo(2) && streak.current >= STREAK_SAVE_MIN;
+  let newCurrent = 1;
+  let saved = false;
+  let lapsed: { count: number; on: string } | null = null;
+  let lastSave = streak.lastSave ?? null;
+  if (streak.lastCheckIn === keyDaysAgo(1)) {
+    newCurrent = streak.current + 1;
+  } else if (missedOne && isPremium && saveAvailable(lastSave, today)) {
+    newCurrent = streak.current + 1;
+    saved = true;
+    lastSave = today;
+  } else if (missedOne && saveAvailable(lastSave, today)) {
+    lapsed = { count: streak.current, on: today };
   }
 
-  const newLongest = Math.max(newCurrent, data.streak.longest);
-  const newHistory = data.streak.history.includes(today)
-    ? data.streak.history
-    : [...data.streak.history, today];
-
+  const newLongest = Math.max(newCurrent, streak.longest);
+  const newHistory = streak.history.includes(today) ? streak.history : [...streak.history, today];
   const milestone = STREAK_MILESTONES.includes(newCurrent) ? newCurrent : null;
 
   const updated: UserData = {
     ...data,
-    streak: {
-      current: newCurrent,
-      longest: newLongest,
-      lastCheckIn: today,
-      history: newHistory,
-    },
+    streak: { current: newCurrent, longest: newLongest, lastCheckIn: today, history: newHistory, lastSave, lapsed },
   };
-
   await setUserData(updated);
 
-  return {
-    current: newCurrent,
-    longest: newLongest,
-    isNewDay: true,
-    milestone,
-  };
+  return { current: newCurrent, longest: newLongest, isNewDay: true, milestone, saved, lapsed: lapsed && !isPremium ? lapsed.count : null };
 }
 
 export interface MilestoneCopy {

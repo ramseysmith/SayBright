@@ -55,6 +55,8 @@ import SunriseHero from '../../src/components/art/SunriseHero';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import BrightMark from '../../src/components/art/BrightMark';
 import BillingIssueBanner from '../../src/components/BillingIssueBanner';
+import { scheduleStreakNudge } from '../../src/services/notifications';
+import { getActivePack, type SeasonalPack } from '../../src/data/seasonal';
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
@@ -63,6 +65,10 @@ export default function TodayScreen() {
   const [loading, setLoading] = useState(true);
   const [streakCount, setStreakCount] = useState(0);
   const [milestone, setMilestone] = useState<number | null>(null);
+  // A streak that reset today after one missed day: the streak save offer (1.4.0)
+  const [lapsed, setLapsed] = useState<number | null>(null);
+  const [lapsedDismissed, setLapsedDismissed] = useState(false);
+  const seasonalPack = useMemo(() => getActivePack(), []);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [recordingModalOpen, setRecordingModalOpen] = useState(false);
   const [recordedIds, setRecordedIds] = useState<Set<string>>(new Set());
@@ -126,9 +132,20 @@ export default function TodayScreen() {
       opacity.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
       scale.value = withTiming(1, { duration: 300, easing: Easing.out(Easing.quad) });
 
-      const streakResult = await checkInToday();
+      const streakResult = await checkInToday(isPremium);
       if (!active) return;
       setStreakCount(streakResult.current);
+      setLapsed(streakResult.lapsed);
+      // Moves the 8 PM nudge to tomorrow, so it only arrives on a missed day
+      scheduleStreakNudge(streakResult.current);
+      if (streakResult.saved) {
+        trackEvent('streak_saved', { current: streakResult.current });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        streakBadgeScale.value = withSequence(withSpring(1.4, { damping: 6, stiffness: 200 }), withSpring(1, { damping: 12, stiffness: 200 }));
+        toast.show(`Streak saved. Day ${streakResult.current}.`);
+      } else if (streakResult.lapsed && streakResult.isNewDay) {
+        trackEvent('streak_save_offer', { kind: 'view', lost: streakResult.lapsed });
+      }
       if (streakResult.isNewDay) {
         trackEvent('streak_incremented', { current: streakResult.current });
         Haptics.notificationAsync(
@@ -153,6 +170,8 @@ export default function TodayScreen() {
     return () => {
       active = false;
     };
+    // toast is left out on purpose: a new toast object must not reload the day's set
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opacity, scale, streakBadgeScale, isPremium]);
 
   useEffect(() => {
@@ -442,7 +461,35 @@ export default function TodayScreen() {
 
           <BillingIssueBanner />
 
-          <View style={[styles.hero, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
+          {lapsed && !lapsedDismissed && !isPremium ? (
+            <View style={[styles.lapsed, onSky ? styles.chipNight : styles.chipDay]}>
+              <View style={styles.lapsedIcon}>
+                <Ionicons name="flame" size={18} color={C.onGold} />
+              </View>
+              <View style={styles.lapsedText}>
+                <Text style={[styles.lapsedTitle, { color: textColor }]}>{`Your ${lapsed} day streak slipped`}</Text>
+                <Text style={[styles.lapsedBody, { color: subtleTextColor }]}>Premium saves a missed day once a week. Start today and it comes back.</Text>
+                <View style={styles.lapsedActions}>
+                  <Tap
+                    onPress={() => {
+                      trackEvent('streak_save_offer', { kind: 'tap', lost: lapsed });
+                      router.push('/paywall?source=streak_save');
+                    }}
+                    style={styles.lapsedCta}
+                    pressedStyle={styles.endCtaPressed}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.lapsedCtaText}>Save my streak</Text>
+                  </Tap>
+                  <Tap onPress={() => setLapsedDismissed(true)} hitSlop={10} style={styles.lapsedLater} accessibilityRole="button">
+                    <Text style={[styles.lapsedLaterText, { color: subtleTextColor }]}>Start over</Text>
+                  </Tap>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={[styles.hero, lapsed && !lapsedDismissed && !isPremium ? styles.heroHidden : null, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
             <SunriseHero width={winWidth} period={period} height={Math.min(240, Math.max(140, winHeight * 0.22))} />
           </View>
 
@@ -458,6 +505,12 @@ export default function TodayScreen() {
                       textColor={textColor}
                       subtleTextColor={subtleTextColor}
                       onSeePlans={() => router.push('/paywall?source=daily_limit')}
+                      pack={seasonalPack}
+                      onOpenPack={() => {
+                        if (!seasonalPack) return;
+                        trackEvent('seasonal_opened', { source: 'end_card' });
+                        router.push({ pathname: '/category/[id]', params: { id: seasonalPack.id } });
+                      }}
                     />
                   ) : current ? (
                     <>
@@ -550,7 +603,11 @@ function EndOfDayCard({
   textColor,
   subtleTextColor,
   onSeePlans,
+  pack,
+  onOpenPack,
 }: {
+  pack?: SeasonalPack;
+  onOpenPack: () => void;
   reminderTime: string | null;
   textColor: string;
   subtleTextColor: string;
@@ -568,6 +625,12 @@ function EndOfDayCard({
         <Ionicons name="sparkles" size={16} color={C.onGold} />
         <Text style={styles.endCtaText}>Keep going with Premium</Text>
       </Tap>
+      {pack ? (
+        <Tap onPress={onOpenPack} hitSlop={8} style={styles.endPack} accessibilityRole="button" accessibilityLabel={`${pack.name}, ${pack.texts.length} more this month, free`}>
+          <Text style={[styles.endPackText, { color: textColor }]}>{`Read ${pack.name}, free`}</Text>
+          <Ionicons name="chevron-forward" size={16} color={textColor} />
+        </Tap>
+      ) : null}
     </View>
   );
 }
@@ -630,6 +693,19 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     backgroundColor: C.gold,
   },
+  endPack: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 44, marginTop: 6 },
+  endPackText: { fontFamily: FONTS.bodyBold, fontSize: 14 },
+  heroHidden: { display: 'none' },
+  lapsed: { flexDirection: 'row', gap: 12, padding: 14, borderRadius: RADIUS.md, borderWidth: 1, marginTop: 14 },
+  lapsedIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  lapsedText: { flex: 1 },
+  lapsedTitle: { fontFamily: FONTS.bodyBold, fontSize: 16 },
+  lapsedBody: { fontFamily: FONTS.bodyRegular, fontSize: 14, lineHeight: 20, marginTop: 2 },
+  lapsedActions: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 10 },
+  lapsedCta: { height: 44, paddingHorizontal: 18, borderRadius: 22, backgroundColor: C.gold, alignItems: 'center', justifyContent: 'center' },
+  lapsedCtaText: { fontFamily: FONTS.bodyBold, fontSize: 15, color: C.onGold },
+  lapsedLater: { minHeight: 44, justifyContent: 'center' },
+  lapsedLaterText: { fontFamily: FONTS.bodyMedium, fontSize: 14 },
   endCtaPressed: { backgroundColor: C.goldDeep },
   endCtaText: { fontFamily: FONTS.bodyBold, fontSize: 16, color: C.onGold },
 });

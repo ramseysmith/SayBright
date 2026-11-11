@@ -16,6 +16,7 @@ import { Affirmation } from '../../src/data/affirmations';
 import { COLORS, FONTS, FONT_SIZES, SPACING } from '../../src/constants/theme';
 import { getUserData, toggleFavorite } from '../../src/services/storage';
 import {
+  artKey,
   getAffirmationById,
   getCategoryById,
 } from '../../src/utils/affirmations';
@@ -85,8 +86,8 @@ export default function FavoritesScreen() {
         )}
       >
         <View style={styles.row}>
-          <View style={[styles.rowGlyph, { backgroundColor: (CATEGORY_PALETTES[item.categoryId] ?? CATEGORY_PALETTES.confidence).from }]}>
-            <CategoryIcon name={item.categoryId} size={20} color={(CATEGORY_PALETTES[item.categoryId] ?? CATEGORY_PALETTES.confidence).ink} />
+          <View style={[styles.rowGlyph, { backgroundColor: (CATEGORY_PALETTES[artKey(item.categoryId)] ?? CATEGORY_PALETTES.confidence).from }]}>
+            <CategoryIcon name={artKey(item.categoryId)} size={20} color={(CATEGORY_PALETTES[artKey(item.categoryId)] ?? CATEGORY_PALETTES.confidence).ink} />
           </View>
           <View style={styles.rowText}>
             <Text style={styles.rowAffirmation}>{item.text}</Text>
