@@ -109,6 +109,44 @@ export function diagnose(root) {
   if (subscription && trialCopy && !gated) add('H4', 'FAIL', 'trial copy only when the store says the user is eligible', 'trial wording found with no eligibility check');
   else add('H4', subscription ? 'PASS' : 'SKIP', 'trial copy only when the store says the user is eligible');
 
+  // Google Play trials (found in Drift, Nov 12 2026). RevenueCat's eligibility
+  // check is iOS only and always answers unknown on Android, so an app that
+  // gates the trial on it never shows the free week on Play. On Android the
+  // trial is the free phase of the product's default subscription option.
+  const iosOnlyCheck = /checkTrialOrIntroductoryPriceEligibility/.test(all);
+  const playPath = /defaultOption|freePhase/.test(all);
+  // A hard fail only in apps Ramsey picked for Android (HQ portfolio.json); a
+  // warning elsewhere so it is fixed before any port.
+  let ported = false;
+  try {
+    const origin = readFileSync(join(root, '.git', 'config'), 'utf8').match(/github\.com[:/]([^\s]+?)(\.git)?\s/)?.[1]?.toLowerCase();
+    const portfolio = JSON.parse(readFileSync(join(root, '..', 'graysmith_labs_agent', 'portfolio.json'), 'utf8'));
+    const app = (portfolio.apps || []).find((a) => a.repo?.toLowerCase() === origin);
+    ported = !!app && app.android?.status !== 'not started';
+  } catch { ported = existsSync(join(root, 'play.config.json')); }
+  if (subscription && iosOnlyCheck && !playPath) add('H5', ported ? 'FAIL' : 'WARN', 'the free trial also shows on Google Play', 'eligibility comes only from checkTrialOrIntroductoryPriceEligibility, which always returns unknown on Android; read product.defaultOption?.freePhase on Android');
+  else add('H5', subscription && iosOnlyCheck ? 'PASS' : 'SKIP', 'the free trial also shows on Google Play');
+
+  // What the person did on the paywall (section 5). Without these a view with no
+  // trial cannot be told apart from plans that never loaded or a failed purchase.
+  const funnel = ['paywall_plans', 'purchase_tap', 'purchase_cancel', 'purchase_fail'];
+  const missing = funnel.filter((e) => !new RegExp(`['"\`]${e}['"\`]`).test(all));
+  if (missing.length) add('P6', 'WARN', 'paywall_plans, purchase_tap, purchase_cancel and purchase_fail are tracked', `missing: ${missing.join(', ')}`);
+  else add('P6', 'PASS', 'paywall_plans, purchase_tap, purchase_cancel and purchase_fail are tracked');
+
+  // Local simulator and emulator builds use the RevenueCat Test Store so agents
+  // see real plans and prices; production must never carry the test key.
+  let eas = null;
+  try { eas = JSON.parse(readFileSync(join(root, 'eas.json'), 'utf8')); } catch { eas = null; }
+  if (eas?.build) {
+    const prodHasTest = Object.entries(eas.build).some(([name, p]) => /prod/i.test(name) && JSON.stringify(p.env || {}).includes('REVENUECAT_TEST_KEY'));
+    const simHasTest = Object.values(eas.build).some((p) => p?.ios?.simulator && (p.env || {}).EXPO_PUBLIC_REVENUECAT_TEST_KEY);
+    const codeReadsTest = /EXPO_PUBLIC_REVENUECAT_TEST_KEY/.test(all);
+    if (prodHasTest) add('K1', 'FAIL', 'the RevenueCat test key never reaches production', 'a production profile in eas.json sets a REVENUECAT_TEST_KEY');
+    else if (!simHasTest || !codeReadsTest) add('K1', 'WARN', 'simulator builds load plans from the RevenueCat Test Store', `${simHasTest ? '' : 'no EXPO_PUBLIC_REVENUECAT_TEST_KEY in the simulator profile env; '}${codeReadsTest ? '' : 'the app never reads EXPO_PUBLIC_REVENUECAT_TEST_KEY'}`.replace(/; $/, ''));
+    else add('K1', 'PASS', 'simulator builds load plans from the RevenueCat Test Store');
+  }
+
   return { app: root.split('/').pop(), subscription, sources: src, results };
 }
 
