@@ -45,7 +45,7 @@ export function sources(text) {
   const pats = [
     /\bsource\s*[:=]\s*['"`]([a-z][a-z0-9_]*)['"`]/g,
     /\bsource=\{?['"`]([a-z][a-z0-9_]*)['"`]/g,
-    /(?:openPaywall|showPaywall|presentPaywall|goToPaywall)\(\s*['"`]([a-z][a-z0-9_]*)['"`]/g,
+    /(?:openPaywall|showPaywall|presentPaywall|goToPaywall|track[A-Z]\w*)\(\s*['"`]([a-z][a-z0-9_]*)['"`]/g,
     /[?&]source=([a-z][a-z0-9_]*)/g,
   ];
   for (const re of pats) for (const m of text.matchAll(re)) found.add(m[1]);
@@ -81,11 +81,11 @@ export function diagnose(root) {
   if (!/['"`]paywall_close['"`]/.test(all)) add('P4', 'FAIL', 'paywall_close is tracked on dismiss', 'track("paywall_close", { source, paywall_version, seconds }) when the paywall closes without a purchase');
   else add('P4', 'PASS', 'paywall_close is tracked on dismiss');
 
-  const conv = [...files.flatMap((f) => trackCalls(f.text, 'trial_start').map((c) => ({ ...c, f }))), ...files.flatMap((f) => trackCalls(f.text, 'purchase').map((c) => ({ ...c, f })))];
-  const ternary = files.flatMap((f) => [...f.text.matchAll(/track\(\s*[^,]*\?\s*['"]trial_start['"]\s*:\s*['"]purchase['"]\s*,\s*(\{[^}]*\})/g)].map((m) => ({ props: m[1], f, index: m.index })));
-  const convAll = [...conv, ...ternary];
+  // Any place the event name is followed by its properties: track('purchase', {...}),
+  // the trial_start/purchase ternary, and name maps like ['trial_start', {...}].
+  const convAll = files.flatMap((f) => [...f.text.matchAll(/['"`](trial_start|purchase)['"`]\s*\]?\s*,\s*(\{[^}]*\}|[A-Za-z_$][\w$.]*)/g)].map((m) => ({ props: m[2], f, index: m.index })));
   if (!convAll.length && !/['"]trial_start['"]/.test(all)) add('P5', subscription ? 'FAIL' : 'WARN', 'trial_start and purchase carry source', 'no trial_start or purchase tracking found');
-  else if (convAll.some((c) => !/\bsource\b/.test(c.props))) add('P5', 'FAIL', 'trial_start and purchase carry source', [...new Set(convAll.filter((c) => !/\bsource\b/.test(c.props)).map((c) => `${c.f.path}:${lineOf(c.f.text, c.index)}`))].join(', '));
+  else if (convAll.some((c) => c.props.startsWith('{') && !/\bsource\b/.test(c.props))) add('P5', 'FAIL', 'trial_start and purchase carry source', [...new Set(convAll.filter((c) => c.props.startsWith('{') && !/\bsource\b/.test(c.props)).map((c) => `${c.f.path}:${lineOf(c.f.text, c.index)}`))].join(', '));
   else add('P5', 'PASS', 'trial_start and purchase carry source');
 
   // Visibility (section 4)
