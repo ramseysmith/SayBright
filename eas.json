@@ -17,6 +17,12 @@
       "ios": {
         "image": "auto"
       }
+    },
+    "ios-sim": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": true
+      }
     }
   },
   "submit": {
