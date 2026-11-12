@@ -85,7 +85,8 @@ type PortfolioEvent =
   | 'onboarding_step'
   | 'day_open'
   | 'streak_save'
-  | 'seasonal_open';
+  | 'seasonal_open'
+  | 'review_prompt';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
@@ -133,6 +134,8 @@ function toPortfolioEvent(
       return [['success_moment', { kind: 'streak' }]];
     case 'daily_set_finished':
       return [['success_moment', { kind: 'daily_set' }]];
+    case 'review_prompted':
+      return [['review_prompt', { kind: String(properties?.kind ?? 'unknown') }]];
     case 'onboarding_affirmation_said':
       return [['core_action', { kind: 'onboarding_said' }]];
     case 'notification_enabled':

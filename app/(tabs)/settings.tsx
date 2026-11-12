@@ -45,7 +45,6 @@ import {
 import { AFFIRMATIONS } from '../../src/data/affirmations';
 import { Audio } from 'expo-av';
 import { trackEvent } from '../../src/services/analytics';
-import * as StoreReview from 'expo-store-review';
 import Constants from 'expo-constants';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import { C } from '../../src/theme/colors';
@@ -210,15 +209,9 @@ export default function SettingsScreen() {
     }
   };
 
-  const onRate = async () => {
-    try {
-      if (await StoreReview.hasAction()) {
-        await StoreReview.requestReview();
-        return;
-      }
-    } catch {
-      // fall through to the App Store page
-    }
+  // Always the App Store review page: requestReview from a button may show
+  // nothing once Apple's yearly limit is used (HQ docs/acquisition.md 2.3)
+  const onRate = () => {
     openExternal(URLS.writeReview);
   };
 

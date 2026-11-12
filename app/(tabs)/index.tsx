@@ -160,10 +160,6 @@ export default function TodayScreen() {
             milestone: streakResult.milestone,
           });
           setMilestone(streakResult.milestone);
-        } else {
-          setTimeout(() => {
-            maybeRequestReview();
-          }, 2000);
         }
       }
     })();
@@ -409,8 +405,11 @@ export default function TodayScreen() {
     trackEvent('daily_set_finished', { kind: 'free' });
     (async () => {
       await new Promise((r) => setTimeout(r, 700));
-      await maybeShowInterstitial(false);
+      const adShown = await maybeShowInterstitial(false);
       await recordCoreActionFinished();
+      // The first finished set never shows an ad, so this is where most
+      // people are asked for a rating; never on top of an ad
+      if (!adShown) await maybeRequestReview('daily_set');
     })();
   }, [isPaywallCard]);
 
@@ -427,6 +426,7 @@ export default function TodayScreen() {
       affirmationId: current.id,
       totalFavorites: updated.length,
     });
+    if (updated.includes(current.id)) maybeRequestReview('favorite');
   };
 
 
