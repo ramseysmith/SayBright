@@ -91,7 +91,7 @@ type PortfolioEvent =
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
 const ID_KEY = 'saybright.analyticsId.v1';
-const posthogEnabled = !!POSTHOG_KEY && !__DEV__ && Platform.OS !== 'web';
+const posthogEnabled = !!POSTHOG_KEY && !__DEV__ && Platform.OS !== 'web' && !process.env.EXPO_PUBLIC_REVENUECAT_TEST_KEY; // never from simulator test builds
 /**
  * Names the paywall that is live, sent on every paywall event. Bump it to the
  * day's date with any change to the paywall, its copy, its entry points or the

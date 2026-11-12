@@ -30,7 +30,9 @@ export async function initializePurchases(): Promise<void> {
     // Verbose logs surface the underlying StoreKit reason when offerings come
     // back empty, which is otherwise swallowed and looks like "no products".
     if (__DEV__) await Purchases.setLogLevel(LOG_LEVEL.VERBOSE);
-    await Purchases.configure({ apiKey });
+    // Local simulator and emulator builds set EXPO_PUBLIC_REVENUECAT_TEST_KEY (eas.json
+    // simulator profiles) so agents see real plans from the RevenueCat Test Store.
+    await Purchases.configure({ apiKey: process.env.EXPO_PUBLIC_REVENUECAT_TEST_KEY || apiKey });
     configured = true;
     // Apple Search Ads attribution, so installs from ads can be measured
     if (Platform.OS === 'ios') {
