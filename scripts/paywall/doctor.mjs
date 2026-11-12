@@ -142,9 +142,9 @@ export function diagnose(root) {
     const prodHasTest = Object.entries(eas.build).some(([name, p]) => /prod/i.test(name) && JSON.stringify(p.env || {}).includes('REVENUECAT_TEST_KEY'));
     const simHasTest = Object.values(eas.build).some((p) => p?.ios?.simulator && (p.env || {}).EXPO_PUBLIC_REVENUECAT_TEST_KEY);
     const codeReadsTest = /EXPO_PUBLIC_REVENUECAT_TEST_KEY/.test(all);
-    if (prodHasTest) add('K1', 'FAIL', 'the RevenueCat test key never reaches production', 'a production profile in eas.json sets a REVENUECAT_TEST_KEY');
-    else if (!simHasTest || !codeReadsTest) add('K1', 'WARN', 'simulator builds load plans from the RevenueCat Test Store', `${simHasTest ? '' : 'no EXPO_PUBLIC_REVENUECAT_TEST_KEY in the simulator profile env; '}${codeReadsTest ? '' : 'the app never reads EXPO_PUBLIC_REVENUECAT_TEST_KEY'}`.replace(/; $/, ''));
-    else add('K1', 'PASS', 'simulator builds load plans from the RevenueCat Test Store');
+    if (prodHasTest || simHasTest) add('K1', 'FAIL', 'the RevenueCat test key never reaches production', 'a build profile sets a RevenueCat test key; RevenueCat closes release builds that carry one (PLAN.md, StoreKit configuration)');
+    else if (!codeReadsTest) add('K1', 'WARN', 'paywall preview can load plans from the RevenueCat Test Store', 'the app never reads EXPO_PUBLIC_REVENUECAT_TEST_KEY (HQ scripts/paywall_preview.sh sets it for Debug builds)');
+    else add('K1', 'PASS', 'paywall preview can load plans from the RevenueCat Test Store, no test key in any build profile');
   }
 
   return { app: root.split('/').pop(), subscription, sources: src, results };

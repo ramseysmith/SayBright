@@ -24,7 +24,12 @@ and 440 by 956 points, light and dark when the app has both. Capture:
   seen;
 * every place Premium shows itself to a free user: the home entry, locked items
   and previews, the success moment, limits, Settings.
-Look at every image at full size. When the web export cannot show something
+For the real paywall with RevenueCat plans and prices, run HQ
+`bash ../graysmith_labs_agent/scripts/paywall_preview.sh . <route> <source>` (a Debug
+simulator build with the app's RevenueCat Test Store key, docs/paywalls.md section 5)
+and judge `build/paywall-preview.png`; rerun the deep link with
+`xcrun simctl openurl graysmith_iphone "<scheme>://<route>?source=<source>"` for each
+source while it runs. Look at every image at full size. When the web export cannot show something
 (plans load from RevenueCat on device), say so and judge from the code, and set
 `EXPO_PUBLIC_DEMO_ANNUAL` / `EXPO_PUBLIC_DEMO_MONTHLY` from PLAN.md prices so the
 plan layout is real.
