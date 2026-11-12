@@ -25,6 +25,8 @@ die() { echo "[emulator] ERROR: $*" >&2; exit 1; }
 # ---------- environment ----------
 
 setup_env() {
+  # launchd starts jobs with no locale; Gradle and CocoaPods need UTF-8
+  export LANG="${LANG:-en_US.UTF-8}" LC_ALL="${LC_ALL:-en_US.UTF-8}"
   if [ -z "${ANDROID_HOME:-}" ]; then
     if [ -n "${ANDROID_SDK_ROOT:-}" ]; then ANDROID_HOME="$ANDROID_SDK_ROOT"; else ANDROID_HOME="$HOME/Library/Android/sdk"; fi
   fi
@@ -134,6 +136,25 @@ cmd_boot() {
 
 # Exports the env block of the android-sim profile so the Gradle fallback
 # builds with the same settings (test ads) as the EAS local build.
+has_profile() {
+  node -e "process.exit((require('./eas.json').build||{})[process.argv[1]]?0:1)" "$1" 2>/dev/null
+}
+
+# Where the fallback native build runs. Normally the repo itself. With
+# LOCAL_BUILD_MIRROR=1 (set by HQ scripts/local_checks.sh) it is a copy under
+# $TMPDIR: macOS privacy protection lets a launchd job's bash read ~/Documents
+# but not the Java it starts ("Unable to access jarfile"). eas build --local
+# already builds in a temp copy, which is why it never hit this.
+native_build_dir() {
+  if [ -z "${LOCAL_BUILD_MIRROR:-}" ]; then pwd; return; fi
+  local dest="${TMPDIR:-/tmp}/graysmith-build/$(basename "$PWD")"
+  mkdir -p "$dest"
+  rsync -a --delete --exclude .git --exclude build --exclude android --exclude ios ./ "$dest/" >&2 \
+    || die "Could not copy the repo to $dest"
+  echo "[emulator] Building in $dest (LOCAL_BUILD_MIRROR)" >&2
+  echo "$dest"
+}
+
 export_sim_env() {
   local lines
   lines="$(node -e "try{const e=(require('./eas.json').build['android-sim']||{}).env||{};for(const[k,v]of Object.entries(e))console.log(k+'='+v)}catch(e){}" 2>/dev/null || true)"
@@ -158,18 +179,26 @@ cmd_build() {
   fi
   # The emulator is arm64; building one ABI instead of four halves the time.
   export ORG_GRADLE_PROJECT_reactNativeArchitectures="${ANDROID_ABIS:-arm64-v8a}"
-  say "Local build of profile android-sim (never a cloud build), ABI $ORG_GRADLE_PROJECT_reactNativeArchitectures"
-  if npx --yes eas-cli build --local --non-interactive -p android --profile android-sim --output "$DEFAULT_APK"; then
-    say "Built $DEFAULT_APK"
-    return 0
+  if has_profile android-sim; then
+    say "Local build of profile android-sim (never a cloud build), ABI $ORG_GRADLE_PROJECT_reactNativeArchitectures"
+    if npx --yes eas-cli build --local --non-interactive -p android --profile android-sim --output "$DEFAULT_APK"; then
+      say "Built $DEFAULT_APK"
+      return 0
+    fi
+    say "eas build --local failed; falling back to expo prebuild plus Gradle"
+  else
+    say "No android-sim profile in eas.json (copy it from HQ templates/app/eas.json); building with expo prebuild plus Gradle"
   fi
-  say "eas build --local failed; falling back to expo prebuild plus Gradle"
-  export_sim_env
-  npx expo prebuild -p android --clean --no-install
-  (cd android && ./gradlew assembleRelease --console=plain)
-  local apk
-  apk="$(ls -t android/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1 || true)"
-  [ -n "$apk" ] || die "Gradle finished without an APK in android/app/build/outputs/apk/release"
+  local dir apk
+  dir="$(native_build_dir)"
+  (
+    cd "$dir"
+    export_sim_env
+    npx expo prebuild -p android --clean --no-install
+    cd android && ./gradlew assembleRelease --console=plain
+  ) || die "Gradle fallback build failed (log above)"
+  apk="$(ls -t "$dir"/android/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1 || true)"
+  [ -n "$apk" ] || die "Gradle finished without an APK in $dir/android/app/build/outputs/apk/release"
   cp "$apk" "$DEFAULT_APK"
   say "Built $DEFAULT_APK (Gradle fallback)"
 }

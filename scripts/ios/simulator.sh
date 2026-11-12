@@ -25,6 +25,8 @@ die() { echo "[simulator] ERROR: $*" >&2; exit 1; }
 # ---------- environment ----------
 
 setup_env() {
+  # launchd starts jobs with no locale; CocoaPods crashes without UTF-8
+  export LANG="${LANG:-en_US.UTF-8}" LC_ALL="${LC_ALL:-en_US.UTF-8}"
   command -v xcrun >/dev/null 2>&1 || die "Xcode command line tools missing. Fix: install Xcode, then xcode-select -s /Applications/Xcode.app"
   xcrun simctl help >/dev/null 2>&1 || die "simctl unavailable. Fix: open Xcode once to finish its install"
 }
@@ -78,6 +80,33 @@ sim_profile() {
   " 2>/dev/null || true
 }
 
+# Exports a build profile's env (test ads and the like) for the fallback build.
+export_profile_env() {
+  local lines
+  [ -n "$1" ] || return 0
+  lines="$(node -e "try{const e=(require('./eas.json').build[process.argv[1]]||{}).env||{};for(const[k,v]of Object.entries(e))console.log(k+'='+v)}catch(e){}" "$1" 2>/dev/null || true)"
+  if [ -n "$lines" ]; then
+    while IFS= read -r kv; do
+      [ -n "$kv" ] && export "$kv" && say "env ${kv%%=*}"
+    done <<EOF
+$lines
+EOF
+  fi
+}
+
+# Where the fallback native build runs: the repo, or with LOCAL_BUILD_MIRROR=1
+# (HQ scripts/local_checks.sh) a copy under $TMPDIR, since macOS privacy
+# protection blocks tools a launchd job starts from reading ~/Documents.
+native_build_dir() {
+  if [ -z "${LOCAL_BUILD_MIRROR:-}" ]; then pwd; return; fi
+  local dest="${TMPDIR:-/tmp}/graysmith-build/$(basename "$PWD")"
+  mkdir -p "$dest"
+  rsync -a --delete --exclude .git --exclude build --exclude android --exclude ios ./ "$dest/" >&2 \
+    || die "Could not copy the repo to $dest"
+  echo "[simulator] Building in $dest (LOCAL_BUILD_MIRROR)" >&2
+  echo "$dest"
+}
+
 # ---------- commands ----------
 
 cmd_boot() {
@@ -106,21 +135,36 @@ cmd_build() {
   mkdir -p "$OUT_DIR"
   local profile
   profile="$(sim_profile)"
-  [ -n "$profile" ] || die "No eas.json profile builds for the simulator. Fix: add \"ios-sim\": { \"distribution\": \"internal\", \"ios\": { \"simulator\": true }, \"env\": { \"USE_TEST_ADS\": \"true\" } } to eas.json build"
-  say "Local build of profile $profile for the simulator (never a cloud build)"
   rm -rf "$OUT_DIR/ios-sim" "$OUT_DIR/app-ios-sim.tar.gz"
-  if npx --yes eas-cli build --local --non-interactive -p ios --profile "$profile" --output "$OUT_DIR/app-ios-sim.tar.gz"; then
-    mkdir -p "$OUT_DIR/ios-sim"
-    tar -xzf "$OUT_DIR/app-ios-sim.tar.gz" -C "$OUT_DIR/ios-sim"
+  local built=0
+  if [ -z "$profile" ]; then
+    say "No eas.json profile builds for the simulator (copy android-sim from HQ templates/app/eas.json); building with expo prebuild plus xcodebuild"
+  elif ! command -v fastlane >/dev/null 2>&1; then
+    say "fastlane missing, so eas build --local cannot build iOS (fix: brew install fastlane); building with expo prebuild plus xcodebuild"
   else
-    say "eas build --local failed; falling back to expo prebuild plus xcodebuild"
-    npx expo prebuild -p ios --clean
-    local ws scheme
-    ws="$(ls -d ios/*.xcworkspace | head -1)"
-    scheme="$(basename "$ws" .xcworkspace)"
-    xcodebuild -workspace "$ws" -scheme "$scheme" -configuration Release -sdk iphonesimulator \
-      -destination 'generic/platform=iOS Simulator' -derivedDataPath "$OUT_DIR/ios-derived" \
-      CODE_SIGNING_ALLOWED=NO build | tail -20
+    say "Local build of profile $profile for the simulator (never a cloud build)"
+    if npx --yes eas-cli build --local --non-interactive -p ios --profile "$profile" --output "$OUT_DIR/app-ios-sim.tar.gz"; then
+      mkdir -p "$OUT_DIR/ios-sim"
+      tar -xzf "$OUT_DIR/app-ios-sim.tar.gz" -C "$OUT_DIR/ios-sim"
+      built=1
+    else
+      say "eas build --local failed; falling back to expo prebuild plus xcodebuild"
+    fi
+  fi
+  if [ "$built" = 0 ]; then
+    local dir derived="$PWD/$OUT_DIR/ios-derived"
+    dir="$(native_build_dir)"
+    (
+      cd "$dir"
+      export_profile_env "$profile"
+      npx expo prebuild -p ios --clean
+      ws="$(ls -d ios/*.xcworkspace 2>/dev/null | head -1)"
+      [ -n "$ws" ] || die "prebuild made no ios/*.xcworkspace (pod install failed? log above)"
+      xcodebuild -workspace "$ws" -scheme "$(basename "$ws" .xcworkspace)" -configuration Release -sdk iphonesimulator \
+        -destination 'generic/platform=iOS Simulator' -derivedDataPath "$derived" \
+        CODE_SIGNING_ALLOWED=NO build > "$derived.log" 2>&1 || { tail -40 "$derived.log"; die "xcodebuild failed (full log $derived.log)"; }
+      tail -5 "$derived.log"
+    ) || exit 1
     mkdir -p "$OUT_DIR/ios-sim"
     cp -R "$OUT_DIR"/ios-derived/Build/Products/Release-iphonesimulator/*.app "$OUT_DIR/ios-sim/"
   fi

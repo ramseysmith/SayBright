@@ -22,6 +22,18 @@
       "distribution": "internal",
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_PUBLIC_USE_TEST_ADS": "true"
+      }
+    },
+    "android-sim": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_USE_TEST_ADS": "true"
       }
     }
   },

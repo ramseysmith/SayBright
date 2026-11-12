@@ -13,13 +13,16 @@ const REAL_INTERSTITIAL_ANDROID = 'ca-app-pub-8327362355420246/4571005281';
 const REAL_BANNER_IOS = 'ca-app-pub-8327362355420246/1617538888';
 const REAL_BANNER_ANDROID = 'ca-app-pub-8327362355420246/1617538888';
 
+// Test ads in dev and in local simulator and emulator builds (eas.json android-sim)
+const USE_TEST_ADS = __DEV__ || process.env.EXPO_PUBLIC_USE_TEST_ADS === 'true';
+
 const AD_UNITS = {
-  interstitial: __DEV__
+  interstitial: USE_TEST_ADS
     ? TestIds.INTERSTITIAL
     : Platform.OS === 'ios'
       ? REAL_INTERSTITIAL_IOS
       : REAL_INTERSTITIAL_ANDROID,
-  banner: __DEV__
+  banner: USE_TEST_ADS
     ? TestIds.BANNER
     : Platform.OS === 'ios'
       ? REAL_BANNER_IOS
