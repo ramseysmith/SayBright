@@ -58,7 +58,8 @@ export function trackEvent(
 /**
  * Anonymous product analytics, the fixed Graysmith Labs event list:
  * onboarding_complete, core_action, success_moment, reminder_opt_in,
- * paywall_view {source}, trial_start, purchase, restore.
+ * paywall_view and paywall_close {source, paywall_version}, trial_start and
+ * purchase {source, paywall_version, plan}, restore (HQ docs/paywalls.md).
  *
  * Same approach as Drift (src/lib/analytics.ts there): PostHog's capture API over
  * plain fetch, no native SDK, and only when EXPO_PUBLIC_POSTHOG_KEY is set in the
@@ -75,6 +76,7 @@ type PortfolioEvent =
   | 'success_moment'
   | 'reminder_opt_in'
   | 'paywall_view'
+  | 'paywall_close'
   | 'trial_start'
   | 'purchase'
   | 'restore'
@@ -89,6 +91,13 @@ const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
 const ID_KEY = 'saybright.analyticsId.v1';
 const posthogEnabled = !!POSTHOG_KEY && !__DEV__ && Platform.OS !== 'web';
+/**
+ * Names the paywall that is live, sent on every paywall event. Bump it to the
+ * day's date with any change to the paywall, its copy, its entry points or the
+ * offer, and name it in the HQ experiments.md row (HQ docs/paywalls.md).
+ */
+export const PAYWALL_VERSION = 'saybright-2026-11-12';
+
 const SAFE_PROPS = ['source', 'plan', 'kind', 'milestone', 'categoryId', 'step', 'index'] as const;
 
 function toPortfolioEvent(
@@ -129,11 +138,13 @@ function toPortfolioEvent(
     case 'notification_enabled':
       return [['reminder_opt_in', { source: 'settings' }]];
     case 'paywall_shown':
-      return [['paywall_view', { source: String(properties?.source ?? 'unknown') }]];
+      return [['paywall_view', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION }]];
+    case 'paywall_dismissed':
+      return [['paywall_close', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION, seconds: Number(properties?.seconds ?? 0) }]];
     case 'purchase_completed':
-      return [[properties?.trial ? 'trial_start' : 'purchase', {}]];
+      return [[properties?.trial ? 'trial_start' : 'purchase', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION }]];
     case 'purchase_restored':
-      return [['restore', {}]];
+      return [['restore', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION }]];
     case 'billing_issue_view':
     case 'billing_issue_tap':
       return [[event, { kind: properties?.inGrace ? 'grace' : 'retry' }]];

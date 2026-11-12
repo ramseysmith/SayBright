@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
@@ -69,6 +69,17 @@ export function usePaywallController(source: string, onDone?: () => void) {
     annual: null,
   });
   const [selected, setSelected] = useState<PlanKey>('annual');
+
+  // paywall_close for every way out that did not unlock Premium: Not now, swipe
+  // down, back, finishing onboarding (HQ docs/paywalls.md, section 5).
+  const unlockedRef = useRef(false);
+  useEffect(() => {
+    const opened = Date.now();
+    return () => {
+      if (!unlockedRef.current)
+        trackEvent('paywall_dismissed', { source, seconds: Math.round((Date.now() - opened) / 1000) });
+    };
+  }, [source]);
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [eligible, setEligible] = useState<Record<string, boolean>>({});
@@ -165,7 +176,8 @@ export function usePaywallController(source: string, onDone?: () => void) {
       if (ok) {
         setPremiumOptimistic(true);
         await setCachedPremiumStatus(true).catch(() => {});
-        trackEvent('purchase_completed', { variant, plan: selected, trial: showTrial });
+        unlockedRef.current = true;
+        trackEvent('purchase_completed', { variant, plan: selected, trial: showTrial, source });
         if (showTrial && trial) {
           await scheduleTrialEndingReminder(trial, pkg.product.priceString, 'SayBright');
         }
@@ -188,7 +200,8 @@ export function usePaywallController(source: string, onDone?: () => void) {
     setRestoring(true);
     const ok = await restorePurchases();
     if (ok) {
-      trackEvent('purchase_restored');
+      unlockedRef.current = true;
+      trackEvent('purchase_restored', { source });
       setPremiumOptimistic(true);
       await setCachedPremiumStatus(true).catch(() => {});
       refreshPremiumStatus().catch(() => {});
