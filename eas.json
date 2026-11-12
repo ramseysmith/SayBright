@@ -24,8 +24,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_USE_TEST_ADS": "true",
-        "EXPO_PUBLIC_REVENUECAT_TEST_KEY": "test_jsbouKJlEVoEVDxZGbdKFavGHyd"
+        "EXPO_PUBLIC_USE_TEST_ADS": "true"
       }
     },
     "android-sim": {
@@ -34,8 +33,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_USE_TEST_ADS": "true",
-        "EXPO_PUBLIC_REVENUECAT_TEST_KEY": "test_jsbouKJlEVoEVDxZGbdKFavGHyd"
+        "EXPO_PUBLIC_USE_TEST_ADS": "true"
       }
     }
   },
