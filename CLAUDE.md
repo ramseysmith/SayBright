@@ -116,7 +116,9 @@ ramseysmith/graysmith_labs_agent (PLAN.md, CLAUDE.md, data/latest.json).
   ux-reviewer, screenshot-producer, monetization-engineer, growth-analyst,
   illustrator. Run release-auditor before any build meant for review, and
   android-auditor before any Android build.
-* Every app ships to Google Play too (HQ docs/android.md). `node
+* Only apps Ramsey picks go to Google Play, Drift first (HQ CLAUDE.md, Nov 12
+  2026): an app is ported when HQ portfolio.json android.status is not
+  "not started". Never start a port on your own. In a ported app `node
   scripts/android/doctor.mjs` must pass after any change; store links go
   through src/lib/stores.ts (or the app's copy); the Play listing lives in
   play.config.json and `npm run build:play` sends a build to Play internal

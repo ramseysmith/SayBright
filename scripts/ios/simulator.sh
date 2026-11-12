@@ -291,9 +291,27 @@ app_has_content() {
   ! grep -q '^(no labelled elements' "$OUT_DIR/ios-ui.txt"
 }
 
+# Answers a system permission prompt (App Tracking Transparency, notifications)
+# with the declining button. The alert belongs to SpringBoard, not the app, so
+# while it is up the app looks blank to app_has_content (BlitzTap, Nov 12 2026).
+dismiss_system_prompt() {
+  local f="$OUT_DIR/ios-ui-full.json" label
+  axe describe-ui --udid "$UDID" > "$f" 2>/dev/null || return 1
+  for label in "Ask App Not to Track" "Don’t Allow" "Don't Allow"; do
+    if grep -qF "\"$label\"" "$f"; then
+      axe tap --label "$label" --wait-timeout 2 --udid "$UDID" >/dev/null 2>&1 || continue
+      say "Answered a system prompt: $label"
+      sleep 1
+      return 0
+    fi
+  done
+  return 1
+}
+
 wait_for_content() {
   local bid="$1" waited=0
   while [ "$waited" -lt "$SMOKE_WAIT" ]; do
+    dismiss_system_prompt || true
     if app_has_content "$bid"; then return 0; fi
     sleep 2; waited=$((waited + 2))
   done
