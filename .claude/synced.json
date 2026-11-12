@@ -6,6 +6,7 @@
     ".claude/agents/growth-analyst.md": "templates/app/.claude/agents/growth-analyst.md",
     ".claude/agents/illustrator.md": "templates/app/.claude/agents/illustrator.md",
     ".claude/agents/monetization-engineer.md": "templates/app/.claude/agents/monetization-engineer.md",
+    ".claude/agents/paywall-auditor.md": "templates/app/.claude/agents/paywall-auditor.md",
     ".claude/agents/release-auditor.md": "templates/app/.claude/agents/release-auditor.md",
     ".claude/agents/screenshot-producer.md": "templates/app/.claude/agents/screenshot-producer.md",
     ".claude/agents/ux-reviewer.md": "templates/app/.claude/agents/ux-reviewer.md",
@@ -18,6 +19,7 @@
     "scripts/android/emulator.sh": "templates/app/scripts/android/emulator.sh",
     "scripts/android/play-listing.mjs": "templates/app/scripts/android/play-listing.mjs",
     "scripts/android/play.sh": "templates/app/scripts/android/play.sh",
-    "scripts/ios/simulator.sh": "templates/app/scripts/ios/simulator.sh"
+    "scripts/ios/simulator.sh": "templates/app/scripts/ios/simulator.sh",
+    "scripts/paywall/doctor.mjs": "templates/app/scripts/paywall/doctor.mjs"
   }
 }

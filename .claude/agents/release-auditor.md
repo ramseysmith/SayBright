@@ -18,7 +18,7 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 5. Cancelled purchases are silent; real failures show a message. Premium state comes from the `premium` entitlement, never local flags.
 6. The RevenueCat iOS key is read from `EXPO_PUBLIC_REVENUECAT_IOS_KEY` and is set in EAS env for production (`eas env:list production`), and is not committed.
 7. Free trial copy only appears when RevenueCat reports intro eligibility.
-7b. AdServices attribution is enabled after configure, and analytics events fire for onboarding_complete, core_action, paywall_view with source, trial_start and purchase (grep the calls).
+7b. AdServices attribution is enabled after configure, analytics events fire for onboarding_complete and core_action, and `node scripts/paywall/doctor.mjs` reports no FAIL (paywall events with source and paywall_version, Restore, Terms, Privacy, eligibility gate; HQ docs/paywalls.md). If the paywall or its entry points changed since the last build, PAYWALL_VERSION was bumped and the paywall-auditor ran.
 
 ## Ads (AdMob only)
 8. No Google test ad unit IDs (`ca-app-pub-3940256099942544`) in production code paths, and no live IDs used in development; test devices or test IDs gate dev builds.

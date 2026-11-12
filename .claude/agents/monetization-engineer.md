@@ -16,7 +16,7 @@ If the RevenueCat MCP tools are not loaded, stop and tell Ramsey to connect http
 5. SDK: configure once at startup from `EXPO_PUBLIC_REVENUECAT_IOS_KEY` (kept in .env.local and EAS env, never in git). Premium state from the entitlement plus a customer info listener. Custom paywall reads offerings and trial eligibility, buys with purchasePackage, treats cancel as silent, schedules a local reminder 2 days before a trial converts, and shows Restore, Terms and Privacy.
 
 6. Right after configure on iOS: `Purchases.enableAdServicesAttributionTokenCollection()` so RevenueCat shows which Apple Search Ads keywords bring paying users. No ATT needed.
-7. Set a RevenueCat customer attribute or pass `source` to every paywall open so conversion can be read per entry point.
+7. Pass `source` to every paywall open so conversion can be read per entry point (HQ docs/paywalls.md section 4 lists the entry points every app needs).
 
 ## Google Play (every app ships to both stores)
 1. In the app's RevenueCat project, a Play Store app (`create-app`, type play_store) with package `com.graysmithlabs.<app>`. Its public key starts with `goog_`; wire it as `EXPO_PUBLIC_REVENUECAT_ANDROID_KEY` (or the app's existing key pattern) and pick the key by platform. Never pass an `appl_` key on Android: SignSnap did, and every Android purchase would have failed.
@@ -29,7 +29,7 @@ If the RevenueCat MCP tools are not loaded, stop and tell Ramsey to connect http
 
 ## Product analytics (needed to measure retention and the funnel)
 1. PostHog (`npx expo install posthog-react-native expo-file-system expo-application expo-device expo-localization`), key in EXPO_PUBLIC_POSTHOG_KEY, `disabled: __DEV__`, screen autocapture off, no identify call so users stay anonymous.
-2. Events, no more: onboarding_complete, core_action (the app's main verb), success_moment, reminder_opt_in, paywall_view {source}, trial_start, purchase, restore. Retention comes from app opens per day.
+2. Events, no more: onboarding_complete, core_action (the app's main verb), success_moment, reminder_opt_in, paywall_view and paywall_close {source, paywall_version}, trial_start and purchase {source, paywall_version, plan}, restore. PAYWALL_VERSION and the rules are in HQ docs/paywalls.md section 5; `node scripts/paywall/doctor.mjs` checks them. Retention comes from app opens per day.
 3. Update the privacy policy and App Privacy (Usage Data, Product Interaction; Analytics; not linked; not tracking) in the same change.
 
 ## AdMob (only network; AppLovin MAX is retired)
