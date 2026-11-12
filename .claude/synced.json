@@ -20,6 +20,7 @@
     "scripts/android/play-listing.mjs": "templates/app/scripts/android/play-listing.mjs",
     "scripts/android/play.sh": "templates/app/scripts/android/play.sh",
     "scripts/ios/simulator.sh": "templates/app/scripts/ios/simulator.sh",
-    "scripts/paywall/doctor.mjs": "templates/app/scripts/paywall/doctor.mjs"
+    "scripts/paywall/doctor.mjs": "templates/app/scripts/paywall/doctor.mjs",
+    "scripts/store/doctor.mjs": "templates/app/scripts/store/doctor.mjs"
   }
 }

@@ -40,7 +40,7 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 
 ## Product quality
 15. Every screen has an empty state, a loading state and an error state.
-16. The review prompt fires only at a success moment and is rate limited.
+16. The review prompt fires only at a success moment and is rate limited, and `node scripts/store/doctor.mjs` reports no FAIL (requestReview present, a review_prompt event, a Rate on the App Store row with action=write-review, no prompt behind a timer of 2000 ms or more; HQ docs/acquisition.md 2.3). Its WARNs are read, not blocking: R5 means a person confirms the prompt waits on a finished win, L1 is the localization lever for the next aso-sprint.
 17. Support contact and Rate the app are reachable from the main screen or settings; there is a delete all data option.
 
 ## Android (when app.json has android.package)
