@@ -149,7 +149,7 @@ native_build_dir() {
   if [ -z "${LOCAL_BUILD_MIRROR:-}" ]; then pwd; return; fi
   local dest="${TMPDIR:-/tmp}/graysmith-build/$(basename "$PWD")"
   mkdir -p "$dest"
-  rsync -a --delete --exclude .git --exclude build --exclude android --exclude ios ./ "$dest/" >&2 \
+  rsync -a --delete --exclude /.git --exclude /build --exclude /android --exclude /ios ./ "$dest/" >&2 \
     || die "Could not copy the repo to $dest"
   echo "[emulator] Building in $dest (LOCAL_BUILD_MIRROR)" >&2
   echo "$dest"
@@ -192,10 +192,10 @@ cmd_build() {
   local dir apk
   dir="$(native_build_dir)"
   (
-    cd "$dir"
-    export_sim_env
-    npx expo prebuild -p android --clean --no-install
-    cd android && ./gradlew assembleRelease --console=plain
+    # set -e is off inside a subshell guarded by ||, so chain every step
+    cd "$dir" && export_sim_env \
+      && npx expo prebuild -p android --clean --no-install \
+      && cd android && ./gradlew assembleRelease --console=plain
   ) || die "Gradle fallback build failed (log above)"
   apk="$(ls -t "$dir"/android/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1 || true)"
   [ -n "$apk" ] || die "Gradle finished without an APK in $dir/android/app/build/outputs/apk/release"

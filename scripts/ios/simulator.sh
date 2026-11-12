@@ -101,7 +101,7 @@ native_build_dir() {
   if [ -z "${LOCAL_BUILD_MIRROR:-}" ]; then pwd; return; fi
   local dest="${TMPDIR:-/tmp}/graysmith-build/$(basename "$PWD")"
   mkdir -p "$dest"
-  rsync -a --delete --exclude .git --exclude build --exclude android --exclude ios ./ "$dest/" >&2 \
+  rsync -a --delete --exclude /.git --exclude /build --exclude /android --exclude /ios ./ "$dest/" >&2 \
     || die "Could not copy the repo to $dest"
   echo "[simulator] Building in $dest (LOCAL_BUILD_MIRROR)" >&2
   echo "$dest"
@@ -155,9 +155,8 @@ cmd_build() {
     local dir derived="$PWD/$OUT_DIR/ios-derived"
     dir="$(native_build_dir)"
     (
-      cd "$dir"
-      export_profile_env "$profile"
-      npx expo prebuild -p ios --clean
+      # set -e is off inside a subshell guarded by ||, so chain every step
+      cd "$dir" && export_profile_env "$profile" && npx expo prebuild -p ios --clean || exit 1
       ws="$(ls -d ios/*.xcworkspace 2>/dev/null | head -1)"
       [ -n "$ws" ] || die "prebuild made no ios/*.xcworkspace (pod install failed? log above)"
       xcodebuild -workspace "$ws" -scheme "$(basename "$ws" .xcworkspace)" -configuration Release -sdk iphonesimulator \
