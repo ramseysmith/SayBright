@@ -27,6 +27,7 @@ import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import { trackEvent } from '../src/services/analytics';
 import { allowAds, preloadInterstitial } from '../src/services/ads';
 import { C } from '../src/theme/colors';
+import { useApplyPendingUpdate } from '../src/services/ota';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -41,6 +42,8 @@ export function useOnboardingFlow() {
 }
 
 export default function RootLayout() {
+  // A new over the air update runs when someone comes back after ten minutes away
+  useApplyPendingUpdate();
   const [fontsLoaded] = useFonts({
     'PlayfairDisplay-Regular': PlayfairDisplay_400Regular,
     'PlayfairDisplay-Bold': PlayfairDisplay_700Bold,

@@ -14,6 +14,7 @@ import { usePremium } from '../context/PremiumContext';
 import { setCachedPremiumStatus } from '../services/storage';
 import { useToast } from '../components/Toast';
 import { trackEvent } from '../services/analytics';
+import { holdUpdates } from '../services/ota';
 import {
   freeTrialOf,
   trialEligibility,
@@ -75,7 +76,9 @@ export function usePaywallController(source: string, onDone?: () => void) {
   const unlockedRef = useRef(false);
   useEffect(() => {
     const opened = Date.now();
+    const release = holdUpdates();
     return () => {
+      release();
       if (!unlockedRef.current)
         trackEvent('paywall_dismissed', { source, seconds: Math.round((Date.now() - opened) / 1000) });
     };
@@ -105,6 +108,7 @@ export function usePaywallController(source: string, onDone?: () => void) {
         );
       } else {
         setError(true);
+        trackEvent('paywall_plans', { source, status: 'error', plans: 0, trial_shown: false });
       }
     } else {
       // Check trial eligibility for both plans before the paywall shows, so
@@ -112,12 +116,36 @@ export function usePaywallController(source: string, onDone?: () => void) {
       const ids = [resolved.monthly, resolved.annual]
         .filter((p): p is PurchasesPackage => !!p && !!freeTrialOf(p.product))
         .map((p) => p.product.identifier);
-      setEligible(await trialEligibility(ids));
+      // Gives up after 3 seconds so a slow answer never blocks the paywall
+      let timedOut = false;
+      const answer = await Promise.race([
+        trialEligibility(ids),
+        new Promise<Record<string, boolean>>((resolve) =>
+          setTimeout(() => {
+            timedOut = true;
+            resolve({});
+          }, 3000)
+        ),
+      ]);
+      setEligible(answer);
       setPackages(resolved);
       if (!resolved.annual) setSelected('monthly');
+      // paywall_plans, once per open (HQ docs/paywalls.md, section 5)
+      const first = resolved.annual ?? resolved.monthly!;
+      const firstTrial = !!freeTrialOf(first.product);
+      trackEvent('paywall_plans', {
+        source,
+        status: 'loaded',
+        plans: (resolved.annual ? 1 : 0) + (resolved.monthly ? 1 : 0),
+        has_trial: firstTrial,
+        trial_shown: firstTrial && !!answer[first.product.identifier],
+        eligibility: !firstTrial ? 'none' : timedOut ? 'timeout' : answer[first.product.identifier] ? 'eligible' : 'not_eligible',
+      });
+      setLoading(false);
+      return;
     }
     setLoading(false);
-  }, []);
+  }, [source]);
 
   useEffect(() => {
     loadOfferings();
@@ -168,7 +196,7 @@ export function usePaywallController(source: string, onDone?: () => void) {
       });
     }
     Haptics.selectionAsync();
-    trackEvent('purchase_started', { variant, plan: selected, source });
+    trackEvent('purchase_started', { variant, plan: selected, source, trial_shown: showTrial });
     setPurchasing(true);
     try {
       const ok = await purchasePackage(pkg);
@@ -185,9 +213,11 @@ export function usePaywallController(source: string, onDone?: () => void) {
         toast.show('Welcome to SayBright Premium.');
         close();
       } else {
-        trackEvent('purchase_cancelled', { variant, plan: selected });
+        trackEvent('purchase_cancelled', { variant, plan: selected, source, trial_shown: showTrial });
       }
     } catch (error) {
+      const err = error as { code?: string | number; readableErrorCode?: string } | undefined;
+      trackEvent('purchase_failed', { plan: selected, source, trial_shown: showTrial, code: String(err?.readableErrorCode ?? err?.code ?? 'unknown') });
       console.warn('[Paywall] purchase error:', error);
       setNotice('Something went wrong. Please try again in a moment.');
     } finally {

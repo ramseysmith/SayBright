@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import Purchases from 'react-native-purchases';
+import { bundleId } from './ota';
 
 export type AnalyticsEvent =
   | 'app_open'
@@ -17,6 +18,8 @@ export type AnalyticsEvent =
   | 'purchase_started'
   | 'purchase_completed'
   | 'purchase_cancelled'
+  | 'purchase_failed'
+  | 'paywall_plans'
   | 'purchase_restored'
   | 'ad_interstitial_shown'
   | 'ad_banner_shown'
@@ -77,6 +80,10 @@ type PortfolioEvent =
   | 'reminder_opt_in'
   | 'paywall_view'
   | 'paywall_close'
+  | 'paywall_plans'
+  | 'purchase_tap'
+  | 'purchase_cancel'
+  | 'purchase_fail'
   | 'trial_start'
   | 'purchase'
   | 'restore'
@@ -97,7 +104,7 @@ const posthogEnabled = !!POSTHOG_KEY && !__DEV__ && Platform.OS !== 'web' && !pr
  * day's date with any change to the paywall, its copy, its entry points or the
  * offer, and name it in the HQ experiments.md row (HQ docs/paywalls.md).
  */
-export const PAYWALL_VERSION = 'saybright-2026-11-12';
+export const PAYWALL_VERSION = 'saybright-2026-11-13';
 
 const SAFE_PROPS = ['source', 'plan', 'kind', 'milestone', 'categoryId', 'step', 'index'] as const;
 
@@ -144,6 +151,31 @@ function toPortfolioEvent(
       return [['paywall_view', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION }]];
     case 'paywall_dismissed':
       return [['paywall_close', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION, seconds: Number(properties?.seconds ?? 0) }]];
+    case 'paywall_plans':
+      // What the person actually saw, once per open: did plans load, was the free
+      // trial offered, and did Apple's eligibility answer or time out (section 5)
+      return [['paywall_plans', {
+        source: String(properties?.source ?? 'unknown'),
+        paywall_version: PAYWALL_VERSION,
+        status: String(properties?.status ?? 'unknown'),
+        plans: Number(properties?.plans ?? 0),
+        trial_shown: !!properties?.trial_shown,
+        has_trial: !!properties?.has_trial,
+        eligibility: String(properties?.eligibility ?? 'none'),
+      }]];
+    case 'purchase_started':
+    case 'purchase_cancelled':
+    case 'purchase_failed': {
+      const name = event === 'purchase_started' ? 'purchase_tap' : event === 'purchase_cancelled' ? 'purchase_cancel' : 'purchase_fail';
+      const props: Record<string, string | number | boolean> = {
+        source: String(properties?.source ?? 'unknown'),
+        paywall_version: PAYWALL_VERSION,
+        plan: String(properties?.plan ?? 'unknown'),
+        trial_shown: !!properties?.trial_shown,
+      };
+      if (event === 'purchase_failed') props.code = String(properties?.code ?? 'unknown');
+      return [[name, props]];
+    }
     case 'purchase_completed':
       return [[properties?.trial ? 'trial_start' : 'purchase', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION }]];
     case 'purchase_restored':
@@ -212,6 +244,7 @@ function sendToPostHog(event: AnalyticsEvent, properties?: EventProperties): voi
               app: 'saybright',
               app_version: Constants.expoConfig?.version ?? 'unknown',
               platform: Platform.OS,
+              bundle: bundleId(),
             },
           }),
         });

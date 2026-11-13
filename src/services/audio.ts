@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system/legacy';
+import { holdUpdates } from './ota';
 
 const RECORDINGS_DIR = `${FileSystem.documentDirectory}recordings/`;
 
@@ -12,6 +13,10 @@ export async function ensureRecordingsDir(): Promise<void> {
     });
   }
 }
+
+// No restart into a new over the air update while the person records (released
+// on stop, or after five minutes if a recording is abandoned)
+let releaseHold: (() => void) | null = null;
 
 export async function startRecording(): Promise<Audio.Recording> {
   const perm = await Audio.requestPermissionsAsync();
@@ -28,6 +33,10 @@ export async function startRecording(): Promise<Audio.Recording> {
     Audio.RecordingOptionsPresets.HIGH_QUALITY
   );
   await recording.startAsync();
+  releaseHold?.();
+  const release = holdUpdates();
+  releaseHold = release;
+  setTimeout(release, 5 * 60 * 1000);
   return recording;
 }
 
@@ -35,6 +44,8 @@ export async function stopRecording(
   recording: Audio.Recording,
   affirmationId: string
 ): Promise<string> {
+  releaseHold?.();
+  releaseHold = null;
   await recording.stopAndUnloadAsync();
   await Audio.setAudioModeAsync({ allowsRecordingIOS: false });
 
