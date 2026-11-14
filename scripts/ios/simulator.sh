@@ -74,8 +74,11 @@ sim_profile() {
   node -e "
     try {
       const b = require('./eas.json').build || {};
-      if (b['ios-sim']) { process.stdout.write('ios-sim'); process.exit(0); }
-      for (const [k, v] of Object.entries(b)) if (v && v.ios && v.ios.simulator) { process.stdout.write(k); process.exit(0); }
+      // A development client shows the dev launcher, not the app, so it can never
+      // be the smoke build (Tallyhand and TubTender ios-simulator, Nov 14 2026).
+      const dev = (k, seen = 0) => { const v = b[k] || {}; return !!v.developmentClient || (!!v.extends && seen < 5 && dev(v.extends, seen + 1)); };
+      if (b['ios-sim'] && !dev('ios-sim')) { process.stdout.write('ios-sim'); process.exit(0); }
+      for (const [k, v] of Object.entries(b)) if (v && v.ios && v.ios.simulator && !dev(k)) { process.stdout.write(k); process.exit(0); }
     } catch (e) {}
   " 2>/dev/null || true
 }
@@ -288,7 +291,12 @@ app_has_content() {
   pid="$(app_pid "$1")"
   [ -n "$pid" ] || return 1
   APP_PID="$pid" dump_ui > "$OUT_DIR/ios-ui.txt" 2>/dev/null || return 1
-  ! grep -q '^(no labelled elements' "$OUT_DIR/ios-ui.txt"
+  ! grep -q '^(no labelled elements' "$OUT_DIR/ios-ui.txt" || return 1
+  # The Expo dev launcher has labels too, but it is not the app.
+  if grep -qE 'DEVELOPMENT SERVERS|Searching for development servers|Development Build' "$OUT_DIR/ios-ui.txt"; then
+    say "This is the Expo dev launcher, not the app: build a profile without developmentClient (ios-sim)"
+    return 1
+  fi
 }
 
 # Answers a system permission prompt (App Tracking Transparency, notifications)
