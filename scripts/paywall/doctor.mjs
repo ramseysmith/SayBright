@@ -131,7 +131,7 @@ export function diagnose(root) {
   // trial cannot be told apart from plans that never loaded or a failed purchase.
   const funnel = ['paywall_plans', 'purchase_tap', 'purchase_cancel', 'purchase_fail'];
   const missing = funnel.filter((e) => !new RegExp(`['"\`]${e}['"\`]`).test(all));
-  if (missing.length) add('P6', 'WARN', 'paywall_plans, purchase_tap, purchase_cancel and purchase_fail are tracked', `missing: ${missing.join(', ')}`);
+  if (missing.length) add('P6', 'FAIL', 'paywall_plans, purchase_tap, purchase_cancel and purchase_fail are tracked', `missing: ${missing.join(', ')}`);
   else add('P6', 'PASS', 'paywall_plans, purchase_tap, purchase_cancel and purchase_fail are tracked');
 
   // Local simulator and emulator builds use the RevenueCat Test Store so agents

@@ -14,6 +14,7 @@
 //
 // Synced from HQ (templates/app/scripts/android). Change it there.
 
+import { Buffer } from 'node:buffer';
 import { createSign } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
