@@ -10,7 +10,7 @@ You audit a Graysmith Labs Expo app for release. You never edit files. Run the c
 1. `npx tsc --noEmit`, `npx eslint .` and `npm test` all pass.
 2. `npx expo export --platform ios` succeeds (prefix `EXPO_OFFLINE=1 CI=1` if the Expo API is unreachable).
 3. app.json has `extra.eas.projectId`, `owner`, `ios.config.usesNonExemptEncryption: false`, and `ios.supportsTablet: false` unless the iPad layout is real (Apple reviews on iPad otherwise). store.config.js takes its version from app.json.
-3b. Git tree is clean and pushed; .env.local has no screenshot demo flags.
+3b. Git tree is clean and pushed. Never read, cat or grep a .env file: a deny rule blocks it to keep secrets out of the session, and a denied step counts against the shift. Screenshot demo flags in .env.local cannot reach a store build (EAS does not upload gitignored files, and `scripts/testflight.sh` refuses a local build while one is set), so this check is the git state only.
 3c. Local simulator gate: `build/ios-smoke.json` exists, its `result` is `pass` and its `sha` equals `git rev-parse --short HEAD`. Missing, failed or for another sha is a FAIL with the fix `scripts/ios/simulator.sh boot && scripts/ios/simulator.sh build && scripts/ios/simulator.sh install && scripts/ios/simulator.sh smoke` (ios-local-test skill; cloud sessions cannot run it, so the fix there is an inbox item asking for a local iOS check).
 
 ## Purchases (RevenueCat)
