@@ -236,6 +236,9 @@ cmd_shot() {
   local name="${1:-shot_$(date +%H%M%S)}"
   mkdir -p "$SHOTS_DIR"
   adb exec-out screencap -p > "$SHOTS_DIR/$name.png"
+  # Shrink to 1000 px tall so a Read costs about a quarter of the tokens; text stays legible.
+  # SHOT_FULL=1 keeps the full resolution capture.
+  [ "${SHOT_FULL:-}" = "1" ] || sips -Z 1000 "$SHOTS_DIR/$name.png" >/dev/null 2>&1 || true
   echo "$SHOTS_DIR/$name.png"
 }
 
@@ -360,7 +363,7 @@ cmd_smoke() {
   cat > "$OUT_DIR/android-smoke.json" <<EOF
 {"result":"$result","sha":"$sha","version":"$version","package":"$pkg","target":"$ANDROID_SERIAL","avd":"$AVD","date":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","failures":"${failures# }","shots":"$SHOTS_DIR"}
 EOF
-  say "Screenshots: $SHOTS_DIR/smoke_cold.png $SHOTS_DIR/smoke_resume.png (Read both)"
+  say "Screenshots: $SHOTS_DIR/smoke_cold.png $SHOTS_DIR/smoke_resume.png (Read them only when the smoke fails)"
   if [ "$result" = pass ]; then
     say "SMOKE PASS $version $sha"
   else
