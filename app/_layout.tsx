@@ -25,6 +25,7 @@ import { ShareProvider } from '../src/context/ShareContext';
 import { initializePurchases } from '../src/services/purchases';
 import { AnimatedSplash } from '../src/components/AnimatedSplash';
 import { trackEvent } from '../src/services/analytics';
+import { startDailyOpen } from '../src/services/dailyOpen';
 import { allowAds, preloadInterstitial } from '../src/services/ads';
 import { C } from '../src/theme/colors';
 import { useApplyPendingUpdate } from '../src/services/ota';
@@ -61,6 +62,9 @@ export default function RootLayout() {
   );
   const segments = useSegments();
   const router = useRouter();
+
+  // One app_open per calendar day, also when the app returns from the background
+  useEffect(() => startDailyOpen('saybright', (props) => trackEvent('daily_open', props)), []);
 
   useEffect(() => {
     (async () => {

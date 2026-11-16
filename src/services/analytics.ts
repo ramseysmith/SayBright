@@ -39,7 +39,9 @@ export type AnalyticsEvent =
   | 'onboarding_step'
   | 'streak_saved'
   | 'streak_save_offer'
-  | 'seasonal_opened';
+  | 'seasonal_opened'
+  // One per calendar day on launch or return to foreground (services/dailyOpen.ts)
+  | 'daily_open';
 
 type EventValue = string | number | boolean | null | undefined;
 
@@ -93,7 +95,8 @@ type PortfolioEvent =
   | 'day_open'
   | 'streak_save'
   | 'seasonal_open'
-  | 'review_prompt';
+  | 'review_prompt'
+  | 'app_open';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
 const POSTHOG_HOST = process.env.EXPO_PUBLIC_POSTHOG_HOST ?? 'https://us.i.posthog.com';
@@ -131,6 +134,12 @@ function toPortfolioEvent(
       // One per calendar day opened; index is the day in a row, so day 2 and
       // day 7 return can be read per install (1.4.0)
       return [['day_open', { index: Number(properties?.current ?? 0) }]];
+    case 'daily_open':
+      return [['app_open', {
+        days_since_install: Number(properties?.days_since_install ?? 0),
+        from_notification: !!properties?.from_notification,
+        reminders_on: !!properties?.reminders_on,
+      }]];
     case 'streak_saved':
       return [['streak_save', { kind: 'saved', index: Number(properties?.current ?? 0) }]];
     case 'streak_save_offer':
