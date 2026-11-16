@@ -42,7 +42,9 @@ export function startDailyOpen(prefix: string, send: (props: DailyOpenProps) => 
       let remindersOn = false;
       try {
         const r = await Notifications.getLastNotificationResponseAsync();
-        fromNotification = !!r && Date.now() - Number(r.notification.date) < 10 * 60 * 1000;
+        // iOS gives the date in seconds, Android in milliseconds
+        const t = Number(r?.notification.date ?? 0);
+        fromNotification = !!r && Date.now() - (t < 1e12 ? t * 1000 : t) < 10 * 60 * 1000;
       } catch {
         // No notification module on this platform
       }
