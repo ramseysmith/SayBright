@@ -134,11 +134,28 @@ cmd_boot() {
   say "Ready: $SIM_NAME $UDID"
 }
 
+
+# ---------- build record ----------
+# smoke stamps the current sha, so it must test a build of that sha. build writes
+# the sha it built, install carries it to the device record, and smoke fails when
+# the installed build is older than HEAD in anything beyond scripts/ and .claude/
+# (Nov 17 2026: a smoke passed a morning build for an afternoon commit).
+head_sha() { git rev-parse --short HEAD 2>/dev/null || echo unknown; }
+stale_build() { # prints why the installed build does not match HEAD, nothing when it does
+  local rec="$1" installed
+  installed="$(cat "$rec" 2>/dev/null || true)"
+  if [ -z "$installed" ]; then echo "no record of which commit the installed build came from (run build, then install)"; return; fi
+  [ "$installed" = "$(head_sha)" ] && return
+  if ! git cat-file -e "$installed^{commit}" 2>/dev/null; then echo "installed build is from $installed, not in this repo (run build, then install)"; return; fi
+  if [ -n "$(git diff --name-only "$installed" HEAD -- . ':(exclude)scripts' ':(exclude).claude' 2>/dev/null)" ]; then
+    echo "installed build is from $installed, and app files changed since (run build, then install)"
+  fi
+}
 cmd_build() {
   mkdir -p "$OUT_DIR"
   local profile
   profile="$(sim_profile)"
-  rm -rf "$OUT_DIR/ios-sim" "$OUT_DIR/app-ios-sim.tar.gz"
+  rm -rf "$OUT_DIR/ios-sim" "$OUT_DIR/app-ios-sim.tar.gz" "$OUT_DIR/.ios-built-sha"
   local built=0
   if [ -z "$profile" ]; then
     say "No eas.json profile builds for the simulator (copy android-sim from HQ templates/app/eas.json); building with expo prebuild plus xcodebuild"
@@ -174,7 +191,8 @@ cmd_build() {
   app="$(ls -d "$OUT_DIR"/ios-sim/*.app 2>/dev/null | head -1 || true)"
   [ -n "$app" ] || die "Build finished without a .app in $OUT_DIR/ios-sim"
   [ "$app" = "$DEFAULT_APP" ] || { rm -rf "$DEFAULT_APP"; mv "$app" "$DEFAULT_APP"; }
-  say "Built $DEFAULT_APP"
+  head_sha > "$OUT_DIR/.ios-built-sha"
+  say "Built $DEFAULT_APP at $(head_sha)"
 }
 
 cmd_install() {
@@ -183,6 +201,7 @@ cmd_install() {
   [ -d "$app" ] || die "No app at $app. Fix: scripts/ios/simulator.sh build"
   say "Installing $app on $SIM_NAME"
   xcrun simctl install "$UDID" "$app"
+  if [ "$app" = "$DEFAULT_APP" ] && [ -f "$OUT_DIR/.ios-built-sha" ]; then cp "$OUT_DIR/.ios-built-sha" "$OUT_DIR/.ios-installed-sha"; else rm -f "$OUT_DIR/.ios-installed-sha"; fi
 }
 
 start_app() {
@@ -341,6 +360,9 @@ cmd_smoke() {
   log1="$OUT_DIR/ios-smoke-cold.log"; log2="$OUT_DIR/ios-smoke-resume.log"
   say "Smoke test $bid $version at $sha"
 
+  local stale
+  stale="$(stale_build "$OUT_DIR/.ios-installed-sha")"
+  if [ -n "$stale" ]; then failures="$failures stale_build"; say "Stale build: $stale"; fi
   xcrun simctl terminate "$UDID" "$bid" >/dev/null 2>&1 || true
   cmd_launch
   if wait_for_content "$bid"; then say "Cold start: content on screen"; else failures="$failures cold_start_stuck"; say "Cold start: still splash, blank or not running after ${SMOKE_WAIT} s"; fi

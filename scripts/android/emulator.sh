@@ -167,7 +167,25 @@ EOF
   fi
 }
 
+
+# ---------- build record ----------
+# smoke stamps the current sha, so it must test a build of that sha. build writes
+# the sha it built, install carries it to the device record, and smoke fails when
+# the installed build is older than HEAD in anything beyond scripts/ and .claude/
+# (Nov 17 2026: a smoke passed a morning build for an afternoon commit).
+head_sha() { git rev-parse --short HEAD 2>/dev/null || echo unknown; }
+stale_build() { # prints why the installed build does not match HEAD, nothing when it does
+  local rec="$1" installed
+  installed="$(cat "$rec" 2>/dev/null || true)"
+  if [ -z "$installed" ]; then echo "no record of which commit the installed build came from (run build, then install)"; return; fi
+  [ "$installed" = "$(head_sha)" ] && return
+  if ! git cat-file -e "$installed^{commit}" 2>/dev/null; then echo "installed build is from $installed, not in this repo (run build, then install)"; return; fi
+  if [ -n "$(git diff --name-only "$installed" HEAD -- . ':(exclude)scripts' ':(exclude).claude' 2>/dev/null)" ]; then
+    echo "installed build is from $installed, and app files changed since (run build, then install)"
+  fi
+}
 cmd_build() {
+  rm -f "$OUT_DIR/.android-built-sha"
   mkdir -p "$OUT_DIR"
   [ -n "${JAVA_HOME:-}" ] || die "No JDK 17. Fix: brew install openjdk@17"
   # Gradle's default 512 MB metaspace runs out on Expo apps (expo-updates ksp).
@@ -182,7 +200,8 @@ cmd_build() {
   if has_profile android-sim; then
     say "Local build of profile android-sim (never a cloud build), ABI $ORG_GRADLE_PROJECT_reactNativeArchitectures"
     if npx --yes eas-cli build --local --non-interactive -p android --profile android-sim --output "$DEFAULT_APK"; then
-      say "Built $DEFAULT_APK"
+      head_sha > "$OUT_DIR/.android-built-sha"
+      say "Built $DEFAULT_APK at $(head_sha)"
       return 0
     fi
     say "eas build --local failed; falling back to expo prebuild plus Gradle"
@@ -200,7 +219,8 @@ cmd_build() {
   apk="$(ls -t "$dir"/android/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1 || true)"
   [ -n "$apk" ] || die "Gradle finished without an APK in $dir/android/app/build/outputs/apk/release"
   cp "$apk" "$DEFAULT_APK"
-  say "Built $DEFAULT_APK (Gradle fallback)"
+  head_sha > "$OUT_DIR/.android-built-sha"
+  say "Built $DEFAULT_APK at $(head_sha) (Gradle fallback)"
 }
 
 cmd_install() {
@@ -209,6 +229,7 @@ cmd_install() {
   [ -f "$apk" ] || die "No APK at $apk. Fix: scripts/android/emulator.sh build"
   say "Installing $apk on $ANDROID_SERIAL"
   adb install -r "$apk"
+  if [ "$apk" = "$DEFAULT_APK" ] && [ -f "$OUT_DIR/.android-built-sha" ]; then cp "$OUT_DIR/.android-built-sha" "$OUT_DIR/.android-installed-sha-$ANDROID_SERIAL"; else rm -f "$OUT_DIR/.android-installed-sha-$ANDROID_SERIAL"; fi
 }
 
 # Starts the app's launcher activity. monkey aborts on emulators without
@@ -339,6 +360,9 @@ cmd_smoke() {
   log1="$OUT_DIR/smoke-cold-logcat.txt"; log2="$OUT_DIR/smoke-resume-logcat.txt"
   say "Smoke test $pkg $version at $sha"
 
+  local stale
+  stale="$(stale_build "$OUT_DIR/.android-installed-sha-$ANDROID_SERIAL")"
+  if [ -n "$stale" ]; then failures="$failures stale_build"; say "Stale build: $stale"; fi
   adb shell am force-stop "$pkg" || true
   cmd_launch
   if wait_for_content "$pkg"; then say "Cold start: content on screen"; else failures="$failures cold_start_stuck"; say "Cold start: still splash, blank or not in front after ${SMOKE_WAIT} s"; fi
