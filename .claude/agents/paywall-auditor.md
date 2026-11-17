@@ -34,6 +34,14 @@ source while it runs. Look at every image at full size. When the web export cann
 `EXPO_PUBLIC_DEMO_ANNUAL` / `EXPO_PUBLIC_DEMO_MONTHLY` from PLAN.md prices so the
 plan layout is real.
 
+Capture each size with the free trial shown too (the app's web demo eligibility
+flag, CelebriDay `trialEligible`), and measure, not just look: the plan cards,
+the button, the renewal terms and the links must end inside the viewport, and
+the last value stack item and the trial timeline must end above the top of the
+plan cards. A feature list or timeline cut by the footer fails the hard rule
+(Ramsey, Nov 17 2026: CelebriDay's third feature and its whole timeline were
+hidden under the footer; docs/paywalls.md "The one screen layout").
+
 ## 3. Score
 * Hard rules (section 3): pass or fail each, with the screenshot name. Any fail
   caps the score at 50.
