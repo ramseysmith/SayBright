@@ -27,6 +27,8 @@ export type AnalyticsEvent =
   | 'category_viewed'
   | 'review_prompted'
   | 'notification_enabled'
+  | 'reminder_prompt_shown'
+  | 'reminder_card_opt_in'
   | 'notification_disabled'
   | 'recording_created'
   | 'recording_played'
@@ -96,6 +98,7 @@ type PortfolioEvent =
   | 'streak_save'
   | 'seasonal_open'
   | 'review_prompt'
+  | 'reminder_prompt_shown'
   | 'app_open';
 
 const POSTHOG_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY;
@@ -156,6 +159,10 @@ function toPortfolioEvent(
       return [['core_action', { kind: 'onboarding_said' }]];
     case 'notification_enabled':
       return [['reminder_opt_in', { source: 'settings' }]];
+    case 'reminder_card_opt_in':
+      return [['reminder_opt_in', { source: 'today_card' }]];
+    case 'reminder_prompt_shown':
+      return [['reminder_prompt_shown', { source: String(properties?.source ?? 'unknown') }]];
     case 'paywall_shown':
       return [['paywall_view', { source: String(properties?.source ?? 'unknown'), paywall_version: PAYWALL_VERSION }]];
     case 'paywall_dismissed':

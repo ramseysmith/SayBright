@@ -25,7 +25,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import { Affirmation, AFFIRMATIONS } from '../../src/data/affirmations';
-import { getUserData, incrementSwipeCount, toggleFavorite } from '../../src/services/storage';
+import { getUserData, incrementSwipeCount, toggleFavorite, updateUserData } from '../../src/services/storage';
 import { FONTS } from '../../src/constants/theme';
 import { C, MAX_CONTENT_WIDTH, RADIUS, SKIES, dayPeriod } from '../../src/theme/colors';
 import {
@@ -55,8 +55,12 @@ import SunriseHero from '../../src/components/art/SunriseHero';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import BrightMark from '../../src/components/art/BrightMark';
 import BillingIssueBanner from '../../src/components/BillingIssueBanner';
-import { scheduleStreakNudge } from '../../src/services/notifications';
+import { requestNotificationPermissions, scheduleDailyReminder, scheduleStreakNudge } from '../../src/services/notifications';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
 import { getActivePack, type SeasonalPack } from '../../src/data/seasonal';
+
+const REMINDER_ASK_KEY = 'saybright.reminderAsk.v1';
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
@@ -68,6 +72,10 @@ export default function TodayScreen() {
   // A streak that reset today after one missed day: the streak save offer (1.4.0)
   const [lapsed, setLapsed] = useState<number | null>(null);
   const [lapsedDismissed, setLapsedDismissed] = useState(false);
+  // Second day soft ask (HQ Backlog, Core audience 2, Nov 18 2026): once, from the
+  // second calendar day the app is opened, only when reminders are off and the
+  // system prompt was never denied. Only 1 of 8 installs turned reminders on.
+  const [reminderAsk, setReminderAsk] = useState(false);
   const seasonalPack = useMemo(() => getActivePack(), []);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [recordingModalOpen, setRecordingModalOpen] = useState(false);
@@ -101,6 +109,48 @@ export default function TodayScreen() {
     transform: [{ translateX: translateX.value }, { scale: scale.value }],
     opacity: opacity.value,
   }));
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const [[, asked], [, firstDay]] = await AsyncStorage.multiGet([REMINDER_ASK_KEY, 'saybright.dailyOpen.first.v1']);
+        if (asked || !firstDay || firstDay === getTodayKey()) return;
+        const data = await getUserData();
+        if (data.preferences.reminderEnabled) return;
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status === 'denied' || !active) return;
+        setReminderAsk(true);
+        trackEvent('reminder_prompt_shown', { source: 'today_card' });
+      } catch {
+        // The ask is optional; never in the way of Today
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const closeReminderAsk = () => {
+    setReminderAsk(false);
+    AsyncStorage.setItem(REMINDER_ASK_KEY, '1').catch(() => {});
+  };
+
+  const acceptReminderAsk = async () => {
+    closeReminderAsk();
+    const granted = await requestNotificationPermissions();
+    if (!granted) return;
+    await scheduleDailyReminder(8, 0);
+    await updateUserData((current) => ({
+      ...current,
+      preferences: { ...current.preferences, reminderEnabled: true, reminderTime: '08:00' },
+    }));
+    const d = new Date();
+    d.setHours(8, 0, 0, 0);
+    setReminderLabel(d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }));
+    trackEvent('reminder_card_opt_in', { source: 'today_card' });
+    toast.show('See you tomorrow at 8 AM.');
+  };
 
   useEffect(() => {
     let active = true;
@@ -489,7 +539,27 @@ export default function TodayScreen() {
             </View>
           ) : null}
 
-          <View style={[styles.hero, lapsed && !lapsedDismissed && !isPremium ? styles.heroHidden : null, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
+          {reminderAsk && !(lapsed && !lapsedDismissed && !isPremium) ? (
+            <View style={[styles.lapsed, onSky ? styles.chipNight : styles.chipDay]}>
+              <View style={styles.lapsedIcon}>
+                <Ionicons name="notifications" size={18} color={C.onGold} />
+              </View>
+              <View style={styles.lapsedText}>
+                <Text style={[styles.lapsedTitle, { color: textColor }]}>Want tomorrow&apos;s first one at 8 AM?</Text>
+                <Text style={[styles.lapsedBody, { color: subtleTextColor }]}>One quiet note a day with the affirmation itself. Change the time anytime in Settings.</Text>
+                <View style={styles.lapsedActions}>
+                  <Tap onPress={acceptReminderAsk} style={styles.lapsedCta} accessibilityRole="button">
+                    <Text style={styles.lapsedCtaText}>Remind me</Text>
+                  </Tap>
+                  <Tap onPress={closeReminderAsk} hitSlop={10} style={styles.lapsedLater} accessibilityRole="button">
+                    <Text style={[styles.lapsedLaterText, { color: subtleTextColor }]}>Not now</Text>
+                  </Tap>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          <View style={[styles.hero, (lapsed && !lapsedDismissed && !isPremium) || reminderAsk ? styles.heroHidden : null, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
             <SunriseHero width={winWidth} period={period} height={Math.min(240, Math.max(140, winHeight * 0.22))} />
           </View>
 
