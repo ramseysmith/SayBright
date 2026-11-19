@@ -15,4 +15,9 @@ module.exports = defineConfig([
       globals: { __dirname: 'readonly', require: 'readonly', module: 'writable', process: 'readonly' },
     },
   },
+  {
+    // The synced Claude hooks in .claude run in Node.
+    files: ['.claude/**/*.mjs'],
+    languageOptions: { globals: { Buffer: 'readonly', process: 'readonly', console: 'readonly' } },
+  },
 ]);
