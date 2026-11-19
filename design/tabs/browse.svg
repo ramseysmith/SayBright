@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" data-label="Browse">
+  <!-- Four themes to pick from; one is the sun. -->
+  <rect x="3.5" y="3.5" width="9" height="9" rx="3" data-focus="soft"/>
+  <rect x="3.5" y="15.5" width="9" height="9" rx="3" data-focus="soft"/>
+  <rect x="15.5" y="15.5" width="9" height="9" rx="3" data-focus="soft"/>
+  <circle cx="20" cy="8" r="4.6" fill="currentColor"/>
+</svg>

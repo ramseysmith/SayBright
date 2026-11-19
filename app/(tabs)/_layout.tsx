@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { BottomTabBar } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
 import { BannerAdWrapper } from '../../src/components/BannerAdWrapper';
 import Animated, {
   useAnimatedStyle,
@@ -10,8 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { FONTS } from '../../src/constants/theme';
 import { C } from '../../src/theme/colors';
-
-type IoniconName = keyof typeof Ionicons.glyphMap;
+import { TabIcon, type TabIconName } from '../../src/components/art/TabIcons';
 
 function AnimatedTabIcon({
   name,
@@ -19,7 +17,7 @@ function AnimatedTabIcon({
   size,
   focused,
 }: {
-  name: IoniconName;
+  name: TabIconName;
   color: string;
   size: number;
   focused: boolean;
@@ -36,7 +34,7 @@ function AnimatedTabIcon({
   }));
   return (
     <Animated.View style={style}>
-      <Ionicons name={name} color={color} size={size} />
+      <TabIcon name={name} color={color} focused={focused} size={size} />
     </Animated.View>
   );
 }
@@ -78,7 +76,7 @@ export default function TabsLayout() {
           title: 'Today',
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon
-              name="sunny-outline"
+              name="today"
               color={color}
               size={size}
               focused={focused}
@@ -92,7 +90,7 @@ export default function TabsLayout() {
           title: 'Browse',
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon
-              name="grid-outline"
+              name="browse"
               color={color}
               size={size}
               focused={focused}
@@ -106,7 +104,7 @@ export default function TabsLayout() {
           title: 'Favorites',
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon
-              name="heart-outline"
+              name="favorites"
               color={color}
               size={size}
               focused={focused}
@@ -120,7 +118,7 @@ export default function TabsLayout() {
           title: 'Settings',
           tabBarIcon: ({ color, size, focused }) => (
             <AnimatedTabIcon
-              name="settings-outline"
+              name="settings"
               color={color}
               size={size}
               focused={focused}

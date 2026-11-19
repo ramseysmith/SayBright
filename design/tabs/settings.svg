@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" data-label="Settings">
+  <!-- Three sliders. The tracks stop at each knob so an outlined knob reads clearly. -->
+  <path d="M 4 7 H 6.8 M 13.2 7 H 24"/>
+  <path d="M 4 14 H 14.8 M 21.2 14 H 24"/>
+  <path d="M 4 21 H 8.8 M 15.2 21 H 24"/>
+  <circle cx="10" cy="7" r="3.2" data-focus="solid"/>
+  <circle cx="18" cy="14" r="3.2" data-focus="solid"/>
+  <circle cx="12" cy="21" r="3.2" data-focus="solid"/>
+</svg>
