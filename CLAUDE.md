@@ -132,6 +132,10 @@ ramseysmith/graysmith_labs_agent (PLAN.md, CLAUDE.md, data/latest.json).
 * The same for iOS: no TestFlight build until `scripts/ios/simulator.sh smoke`
   and the core flow pass on the local simulator for the same sha (HQ
   ios-local-test skill); cloud sessions queue "iOS local check needed".
+* Bottom tab bar icons: the app's own set in TubTender's style from
+  design/tabs (HQ tab-icons skill). `node scripts/ui/tab-icons.mjs sheet`,
+  `port` and `check`; never edit TabIcons.tsx by hand, never stock icons in
+  tabBarIcon (the guard hook blocks it).
 * The subagents, the guard hook, its settings and this section are synced from HQ
   (listed in .claude/synced.json). Change them in HQ templates/app and run
   `node scripts/claude_assets.mjs sync` there, or the next sync overwrites the edit.

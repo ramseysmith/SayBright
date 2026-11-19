@@ -18,6 +18,9 @@ You make the art that makes a Graysmith Labs app look like itself. The Drift 1.1
 5. Each glyph is a metaphor a stranger gets in one second. Name collisions are failures (two clouds must differ clearly, as Rain and Thunder do with drops and a bolt).
 6. Optional per item palette: a two stop gradient tile and an ink color per item (Drift's SOUND_PALETTES), all inside the app's palette family.
 
+## Tab bar icons
+The bottom tab bar has its own family in TubTender's style, made with the HQ `tab-icons` skill, not the content icon family above: one tint from the tab bar, 2.2 rounded strokes on a 28 point grid, the body fills at 18% when selected, small solid details from the app icon's motif, the shared three slider Settings glyph. Sources in design/tabs/*.svg; `node scripts/ui/tab-icons.mjs sheet` to judge, `port` to write TabIcons.tsx, `check` to prove it. Never multi color art, tiles or stock packs in the tab bar.
+
 ## Rules for illustrations
 1. Built from the app icon's motif, so the store icon, the listing and the app read as one brand (Drift: crescent and waves).
 2. One hero illustration per screen. A background scene and a hero on the same screen is a double image; turn the background element off there (Drift's NightSky takes `moon={false}`).

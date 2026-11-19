@@ -21,6 +21,7 @@
     "scripts/android/play.sh": "templates/app/scripts/android/play.sh",
     "scripts/ios/simulator.sh": "templates/app/scripts/ios/simulator.sh",
     "scripts/paywall/doctor.mjs": "templates/app/scripts/paywall/doctor.mjs",
-    "scripts/store/doctor.mjs": "templates/app/scripts/store/doctor.mjs"
+    "scripts/store/doctor.mjs": "templates/app/scripts/store/doctor.mjs",
+    "scripts/ui/tab-icons.mjs": "templates/app/scripts/ui/tab-icons.mjs"
   }
 }
