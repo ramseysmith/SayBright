@@ -184,6 +184,30 @@ stale_build() { # prints why the installed build does not match HEAD, nothing wh
     echo "installed build is from $installed, and app files changed since (run build, then install)"
   fi
 }
+# ---------- over the air updates off ----------
+# An emulator build is Release with expo-updates on, so from the second launch it
+# runs the live production update for its runtime instead of the commit, and the
+# smoke's relaunch and every later walk test the store's code (Tallyhand Nov 17
+# 2026). eas build --local gives no hook between prebuild and Gradle, so an app
+# with updates builds through prebuild plus Gradle with
+# expo.modules.updates.ENABLED set false in the generated manifest. Set
+# SIM_KEEP_UPDATES=1 to keep updates on (and the eas build --local path).
+app_has_updates() {
+  grep -qs 'u\.expo\.dev' app.json app.config.js app.config.ts app.config.mjs 2>/dev/null
+}
+updates_off_android() { # run inside the prebuilt project root
+  local m="android/app/src/main/AndroidManifest.xml"
+  [ "${SIM_KEEP_UPDATES:-0}" = 1 ] && return 0
+  [ -f "$m" ] || return 0
+  if grep -q 'expo.modules.updates.ENABLED' "$m"; then
+    perl -0pi -e 's/(android:name="expo\.modules\.updates\.ENABLED"\s+android:value=")[^"]*"/$1false"/' "$m"
+  else
+    perl -0pi -e 's#(<application\b[^>]*>)#$1\n    <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>#' "$m"
+  fi
+  grep -q 'expo.modules.updates.ENABLED" android:value="false"' "$m" || { echo "[emulator] ERROR: could not turn off updates in $m" >&2; return 1; }
+  echo "[emulator] Over the air updates off in this build (it runs the commit's own bundle)"
+}
+
 cmd_build() {
   rm -f "$OUT_DIR/.android-built-sha"
   mkdir -p "$OUT_DIR"
@@ -197,7 +221,9 @@ cmd_build() {
   fi
   # The emulator is arm64; building one ABI instead of four halves the time.
   export ORG_GRADLE_PROJECT_reactNativeArchitectures="${ANDROID_ABIS:-arm64-v8a}"
-  if has_profile android-sim; then
+  if app_has_updates && [ "${SIM_KEEP_UPDATES:-0}" != 1 ]; then
+    say "App uses over the air updates; building with expo prebuild plus Gradle so updates can be turned off (SIM_KEEP_UPDATES=1 keeps them)"
+  elif has_profile android-sim; then
     say "Local build of profile android-sim (never a cloud build), ABI $ORG_GRADLE_PROJECT_reactNativeArchitectures"
     if npx --yes eas-cli build --local --non-interactive -p android --profile android-sim --output "$DEFAULT_APK"; then
       head_sha > "$OUT_DIR/.android-built-sha"
@@ -214,6 +240,7 @@ cmd_build() {
     # set -e is off inside a subshell guarded by ||, so chain every step
     cd "$dir" && export_sim_env \
       && npx expo prebuild -p android --clean --no-install \
+      && updates_off_android \
       && cd android && ./gradlew assembleRelease --console=plain
   ) || die "Gradle fallback build failed (log above)"
   apk="$(ls -t "$dir"/android/app/build/outputs/apk/release/*.apk 2>/dev/null | head -1 || true)"

@@ -3,6 +3,9 @@
 #   scripts/ios/simulator.sh boot | build | install [app] | launch | shot [name]
 #   scripts/ios/simulator.sh tap X Y | tap --label "Text" | type "text" | swipe X1 Y1 X2 Y2 | home
 #   scripts/ios/simulator.sh ui | logs | smoke | stop
+#   scripts/ios/simulator.sh check [--full]   boot, build, install, smoke in one call
+#   build reuses the cached native app when the Expo fingerprint is unchanged and
+#   only rebundles JS (about 30 s instead of 10 min); build --full forces native.
 # Run it from the app repo root. Local builds only: it never starts an EAS
 # cloud build. `smoke` is the iOS gate before any TestFlight build
 # (ios-local-test skill). It writes build/ios-smoke.json with the git sha.
@@ -151,11 +154,86 @@ stale_build() { # prints why the installed build does not match HEAD, nothing wh
     echo "installed build is from $installed, and app files changed since (run build, then install)"
   fi
 }
+# ---------- over the air updates off ----------
+# A simulator build is Release with expo-updates on, so from the second launch it
+# runs the live production update for its runtime instead of the commit, and the
+# smoke's relaunch and every later walk test the store's code (Tallyhand Nov 17
+# 2026). Turn updates off in the built copy and re-sign it ad hoc. Set
+# SIM_KEEP_UPDATES=1 to test what installs get from the live update on purpose.
+disable_updates() { # $1 = .app
+  local app="$1" plist="$1/Expo.plist"
+  [ -f "$plist" ] || return 0
+  if [ "${SIM_KEEP_UPDATES:-0}" = 1 ]; then say "Over the air updates left on (SIM_KEEP_UPDATES=1)"; return 0; fi
+  [ "$(/usr/libexec/PlistBuddy -c 'Print :EXUpdatesEnabled' "$plist" 2>/dev/null)" = false ] && return 0
+  /usr/libexec/PlistBuddy -c 'Set :EXUpdatesEnabled false' "$plist" 2>/dev/null \
+    || /usr/libexec/PlistBuddy -c 'Add :EXUpdatesEnabled bool false' "$plist" \
+    || die "Could not turn off updates in $plist"
+  codesign --force --deep -s - "$app" >/dev/null 2>&1 || die "Ad hoc re-sign of $app failed after turning off updates"
+  say "Over the air updates off in this build (it runs the commit's own bundle)"
+}
+
+# ---------- fast build: cached native app plus a fresh JS bundle ----------
+# A full native build takes 8 to 10 minutes; most changes are JS only. Every full
+# build is kept under SIM_CACHE_DIR keyed by the Expo native fingerprint plus the
+# simulator profile's env. When the key matches, build copies that .app and swaps
+# in a Release Hermes bundle of the current tree (expo export:embed, what Xcode's
+# bundle phase runs), about 30 s. Proved on Tallyhand Nov 20 2026: a changed
+# string showed on screen. `build --full` or SIM_FULL_BUILD=1 forces native.
+SIM_CACHE_DIR="${SIM_CACHE_DIR:-$HOME/Library/Caches/graysmith-sim}"
+native_key() { # $1 = dir, $2 = profile; prints a key or nothing
+  (cd "$1" && node -e "
+    const p = process.argv[1] || '';
+    let env = {};
+    try { env = (require('./eas.json').build[p] || {}).env || {}; } catch (e) {}
+    require('@expo/fingerprint').createFingerprintAsync('.').then(f => {
+      const h = require('crypto').createHash('sha1').update(f.hash + '|' + p + '|' + JSON.stringify(env)).digest('hex');
+      process.stdout.write(h.slice(0, 16));
+    }).catch(() => {});
+  " "$2" 2>/dev/null) || true
+}
+cache_app_dir() { echo "$SIM_CACHE_DIR/$(basename "$PWD")/$1"; }
+store_in_cache() { # $1 = .app, $2 = key
+  [ -n "$2" ] || return 0
+  local dest; dest="$(cache_app_dir "$2")"
+  rm -rf "$dest" && mkdir -p "$dest" && cp -R "$1" "$dest/app.app" || return 0
+  # keep the three newest native builds per app
+  ls -1t "$(dirname "$dest")" 2>/dev/null | tail -n +4 | while IFS= read -r old; do rm -rf "$(dirname "$dest")/$old"; done
+  say "Cached this native build for fast JS builds (key $2)"
+}
+fast_build() { # $1 = dir, $2 = profile, $3 = key; returns 1 to fall back to a full build
+  local cached; cached="$(cache_app_dir "$3")/app.app"
+  [ -d "$cached" ] || return 1
+  local entry bytecode="--bytecode" app="$PWD/$DEFAULT_APP" blog="$PWD/$OUT_DIR/ios-fast-bundle.log"
+  [ "$(node -e "try{process.stdout.write(((require('./app.json').expo||{}).jsEngine)||'hermes')}catch(e){process.stdout.write('hermes')}")" = jsc ] && bytecode=""
+  mkdir -p "$OUT_DIR/ios-sim" && cp -R "$cached" "$app" || return 1
+  say "Fast build: native unchanged (key $3), bundling JS into the cached app"
+  (
+    cd "$1" && export_profile_env "$2" >/dev/null || exit 1
+    entry="$(node -e "require('expo/scripts/resolveAppEntry')" "$PWD" ios absolute | tail -n 1)"
+    [ -n "$entry" ] || exit 1
+    EXPO_NO_TELEMETRY=1 npx expo export:embed --platform ios --dev false --entry-file "$entry" \
+      --bundle-output "$app/main.jsbundle" --assets-dest "$app" $bytecode > "$blog" 2>&1 \
+      || { tail -20 "$blog" >&2; exit 1; }
+  ) || { rm -rf "$app"; say "Fast build failed; doing a full native build"; return 1; }
+  codesign --force --deep -s - "$app" >/dev/null 2>&1 || { rm -rf "$app"; return 1; }
+  echo fast > "$OUT_DIR/.ios-build-mode"
+}
+
 cmd_build() {
   mkdir -p "$OUT_DIR"
-  local profile
+  local profile full=0 key="" kdir
+  [ "${1:-}" = "--full" ] && full=1
+  [ "${SIM_FULL_BUILD:-0}" = 1 ] && full=1
   profile="$(sim_profile)"
-  rm -rf "$OUT_DIR/ios-sim" "$OUT_DIR/app-ios-sim.tar.gz" "$OUT_DIR/.ios-built-sha"
+  rm -rf "$OUT_DIR/ios-sim" "$OUT_DIR/app-ios-sim.tar.gz" "$OUT_DIR/.ios-built-sha" "$OUT_DIR/.ios-build-mode"
+  kdir="$PWD"; [ -n "${LOCAL_BUILD_MIRROR:-}" ] && kdir="$(native_build_dir)"
+  key="$(native_key "$kdir" "$profile")"
+  if [ "$full" = 0 ] && [ -n "$key" ] && fast_build "$kdir" "$profile" "$key"; then
+    disable_updates "$DEFAULT_APP"
+    head_sha > "$OUT_DIR/.ios-built-sha"
+    say "Built $DEFAULT_APP at $(head_sha) (fast: cached native, fresh JS)"
+    return 0
+  fi
   local built=0
   if [ -z "$profile" ]; then
     say "No eas.json profile builds for the simulator (copy android-sim from HQ templates/app/eas.json); building with expo prebuild plus xcodebuild"
@@ -191,14 +269,44 @@ cmd_build() {
   app="$(ls -d "$OUT_DIR"/ios-sim/*.app 2>/dev/null | head -1 || true)"
   [ -n "$app" ] || die "Build finished without a .app in $OUT_DIR/ios-sim"
   [ "$app" = "$DEFAULT_APP" ] || { rm -rf "$DEFAULT_APP"; mv "$app" "$DEFAULT_APP"; }
+  store_in_cache "$DEFAULT_APP" "$key"
+  disable_updates "$DEFAULT_APP"
   head_sha > "$OUT_DIR/.ios-built-sha"
-  say "Built $DEFAULT_APP at $(head_sha)"
+  echo full > "$OUT_DIR/.ios-build-mode"
+  say "Built $DEFAULT_APP at $(head_sha) (full native build)"
+}
+
+# Seeds the cache from an existing build of HEAD (build/.ios-built-sha equals
+# HEAD and the tree is clean), so the next build is fast without a full one first.
+cmd_cache_seed() {
+  [ -d "$DEFAULT_APP" ] || die "No build at $DEFAULT_APP"
+  [ "$(cat "$OUT_DIR/.ios-built-sha" 2>/dev/null)" = "$(head_sha)" ] || die "The build is not from HEAD; run build --full instead"
+  [ -z "$(git status --porcelain -- . ':(exclude)build' 2>/dev/null)" ] || die "Uncommitted changes; commit first"
+  local key; key="$(native_key "$PWD" "$(sim_profile)")"
+  [ -n "$key" ] || die "Could not compute the native fingerprint (@expo/fingerprint missing?)"
+  store_in_cache "$DEFAULT_APP" "$key"
+}
+
+# One call for the whole gate: boot, build (fast when native is unchanged),
+# install, smoke. Prints the smoke's PASS or FAIL line last, so one Bash call
+# with no polling loop is the iOS check. `check --full` forces a native build.
+cmd_check() {
+  local t0 b0
+  t0="$(date +%s)"
+  cmd_boot >/dev/null
+  b0="$(date +%s)"
+  cmd_build "$@" > "$OUT_DIR/ios-check-build.log" 2>&1 || { tail -25 "$OUT_DIR/ios-check-build.log"; die "build failed (log $OUT_DIR/ios-check-build.log)"; }
+  say "Build $(cat "$OUT_DIR/.ios-build-mode" 2>/dev/null || echo ?) in $(( $(date +%s) - b0 )) s"
+  cmd_install >/dev/null
+  cmd_smoke
+  say "check done in $(( $(date +%s) - t0 )) s"
 }
 
 cmd_install() {
   need_sim
   local app="${1:-$DEFAULT_APP}"
   [ -d "$app" ] || die "No app at $app. Fix: scripts/ios/simulator.sh build"
+  disable_updates "$app"
   say "Installing $app on $SIM_NAME"
   xcrun simctl install "$UDID" "$app"
   if [ "$app" = "$DEFAULT_APP" ] && [ -f "$OUT_DIR/.ios-built-sha" ]; then cp "$OUT_DIR/.ios-built-sha" "$OUT_DIR/.ios-installed-sha"; else rm -f "$OUT_DIR/.ios-installed-sha"; fi
@@ -385,7 +493,7 @@ cmd_smoke() {
   local result=pass
   [ -n "$failures" ] && result=fail
   cat > "$OUT_DIR/ios-smoke.json" <<EOF
-{"result":"$result","sha":"$sha","version":"$version","bundleId":"$bid","simulator":"$SIM_NAME","date":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","failures":"${failures# }","shots":"$SHOTS_DIR"}
+{"result":"$result","sha":"$sha","version":"$version","bundleId":"$bid","simulator":"$SIM_NAME","date":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","failures":"${failures# }","shots":"$SHOTS_DIR","build":"$(cat "$OUT_DIR/.ios-build-mode" 2>/dev/null || echo unknown)"}
 EOF
   say "Screenshots: $SHOTS_DIR/smoke_cold.png $SHOTS_DIR/smoke_resume.png (Read them only when the smoke fails)"
   if [ "$result" = pass ]; then
@@ -405,7 +513,7 @@ cmd_stop() {
 }
 
 usage() {
-  sed -n '2,6p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -428,6 +536,8 @@ main() {
     ui) cmd_ui "$@" ;;
     logs) cmd_logs "$@" ;;
     smoke) cmd_smoke "$@" ;;
+    check) cmd_check "$@" ;;
+    cache-seed) cmd_cache_seed ;;
     stop) cmd_stop "$@" ;;
     -h|--help|help) usage 0 ;;
     *) echo "Unknown command: $cmd" >&2; usage 1 ;;
