@@ -276,11 +276,12 @@ cmd_build() {
   say "Built $DEFAULT_APP at $(head_sha) (full native build)"
 }
 
-# Seeds the cache from an existing build of HEAD (build/.ios-built-sha equals
-# HEAD and the tree is clean), so the next build is fast without a full one first.
+# Seeds the cache from an existing build of HEAD (no app files changed since the
+# build, the smoke's stale_build rule, and a clean tree), so the next build is fast without a full one first.
 cmd_cache_seed() {
   [ -d "$DEFAULT_APP" ] || die "No build at $DEFAULT_APP"
-  [ "$(cat "$OUT_DIR/.ios-built-sha" 2>/dev/null)" = "$(head_sha)" ] || die "The build is not from HEAD; run build --full instead"
+  local why; why="$(stale_build "$OUT_DIR/.ios-built-sha")"
+  [ -z "$why" ] || die "Not seeding: $why"
   [ -z "$(git status --porcelain -- . ':(exclude)build' 2>/dev/null)" ] || die "Uncommitted changes; commit first"
   local key; key="$(native_key "$PWD" "$(sim_profile)")"
   [ -n "$key" ] || die "Could not compute the native fingerprint (@expo/fingerprint missing?)"
