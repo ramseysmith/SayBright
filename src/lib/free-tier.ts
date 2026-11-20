@@ -1,3 +1,5 @@
+import { isPremiumPackId } from '../data/seasonal';
+
 /**
  * What SayBright gives for free (refresh 1.3.0, Ramsey's Oct 13 choices).
  *
@@ -15,6 +17,8 @@ export const OPEN_CATEGORY_ID = 'confidence';
 export const PREVIEW_COUNT = 3;
 
 export function isCategoryOpen(categoryId: string, isPremium: boolean): boolean {
-  // Seasonal packs (src/data/seasonal.ts) are free for everyone
-  return isPremium || categoryId === OPEN_CATEGORY_ID || categoryId.startsWith('season_');
+  // The free seasonal pack (src/data/seasonal.ts) is open to everyone; the
+  // month's Premium pack previews like the Premium categories
+  if (isPremium || categoryId === OPEN_CATEGORY_ID) return true;
+  return categoryId.startsWith('season_') && !isPremiumPackId(categoryId);
 }

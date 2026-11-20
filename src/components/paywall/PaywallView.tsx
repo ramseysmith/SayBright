@@ -18,6 +18,7 @@ const HEADLINES: Record<string, { title: string; sub: string }> = {
   browse_locked: { title: 'Open every category', sub: 'Career, calm, wealth, love and more, all of them.' },
   record_voice: { title: 'Hear it in your voice', sub: 'Record your affirmations and play them back each day.' },
   widgets: { title: 'Brighten your home screen', sub: 'A fresh affirmation on your home screen, every day.' },
+  season_premium: { title: 'A new Premium pack every month', sub: 'This season\'s fifteen, plus every category, no limit and no ads.' },
   streak_save: { title: 'Keep your streak alive', sub: 'Premium saves a missed day once a week. Start today and your streak comes back.' },
   onboarding: { title: 'Your first week is free', sub: 'Everything in SayBright, free for 7 days.' },
 };

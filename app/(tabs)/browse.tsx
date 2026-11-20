@@ -10,7 +10,7 @@ import { FONTS } from '../../src/constants/theme';
 import { C, CATEGORY_PALETTES, MAX_CONTENT_WIDTH, RADIUS } from '../../src/theme/colors';
 import { usePremium } from '../../src/context/PremiumContext';
 import { isCategoryOpen } from '../../src/lib/free-tier';
-import { getActivePack } from '../../src/data/seasonal';
+import { getActivePack, getActivePremiumPack, type SeasonalPack } from '../../src/data/seasonal';
 import { trackEvent } from '../../src/services/analytics';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import Tap from '../../src/components/Tap';
@@ -42,13 +42,11 @@ export default function BrowseScreen() {
     return out;
   }, []);
 
-  // This month's free pack, hidden while searching
-  const pack = useMemo(() => getActivePack(), []);
-  const packPal = pack ? CATEGORY_PALETTES[pack.art] ?? CATEGORY_PALETTES.confidence : null;
-  const openPack = () => {
-    if (!pack) return;
+  // This month's free pack and its Premium pack beside it, hidden while searching
+  const packs = useMemo(() => [getActivePack(), getActivePremiumPack()].filter((p): p is SeasonalPack => !!p), []);
+  const openPack = (pack: SeasonalPack) => {
     Haptics.selectionAsync().catch(() => {});
-    trackEvent('seasonal_opened', { source: 'browse' });
+    trackEvent('seasonal_opened', { source: pack.isPremium ? 'browse_premium' : 'browse' });
     router.push({ pathname: '/category/[id]', params: { id: pack.id } });
   };
 
@@ -79,20 +77,38 @@ export default function BrowseScreen() {
             />
           </View>
           <ScrollView contentContainerStyle={styles.gridContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            {pack && packPal && !query.trim() ? (
-              <Tap onPress={openPack} style={styles.pack} accessibilityRole="button" accessibilityLabel={`${pack.name}, ${pack.texts.length} new affirmations this month, free`}>
-                <LinearGradient colors={[packPal.from, packPal.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                <View style={styles.glyph}>
-                  <CategoryIcon name={pack.art} size={30} color={packPal.ink} />
-                </View>
-                <View style={styles.packText}>
-                  <Text style={[styles.packKicker, { color: packPal.ink }]}>New this month</Text>
-                  <Text style={[styles.name, { color: packPal.ink }]}>{pack.name}</Text>
-                  <Text style={[styles.count, { color: packPal.ink }]}>{pack.blurb}</Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={packPal.ink} />
-              </Tap>
-            ) : null}
+            {!query.trim()
+              ? packs.map((pack) => {
+                  const packPal = CATEGORY_PALETTES[pack.art] ?? CATEGORY_PALETTES.confidence;
+                  const locked = !!pack.isPremium && !isPremium;
+                  return (
+                    <Tap
+                      key={pack.id}
+                      onPress={() => openPack(pack)}
+                      style={styles.pack}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${pack.name}, ${pack.texts.length} new affirmations this month, ${pack.isPremium ? (locked ? 'Premium, preview' : 'Premium') : 'free'}`}
+                    >
+                      <LinearGradient colors={[packPal.from, packPal.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+                      <View style={styles.glyph}>
+                        <CategoryIcon name={pack.art} size={30} color={packPal.ink} />
+                      </View>
+                      <View style={styles.packText}>
+                        <Text style={[styles.packKicker, { color: packPal.ink }]}>{pack.isPremium ? 'Premium this month' : 'New this month'}</Text>
+                        <Text style={[styles.name, { color: packPal.ink }]}>{pack.name}</Text>
+                        <Text style={[styles.count, { color: packPal.ink }]}>{pack.blurb}</Text>
+                      </View>
+                      {locked ? (
+                        <View style={styles.lock}>
+                          <Ionicons name="lock-closed" size={11} color={C.onGold} />
+                        </View>
+                      ) : (
+                        <Ionicons name="chevron-forward" size={20} color={packPal.ink} />
+                      )}
+                    </Tap>
+                  );
+                })
+              : null}
             <View style={[styles.grid, { gap }]}>
               {filtered.map((cat) => {
                 const pal = CATEGORY_PALETTES[cat.id] ?? CATEGORY_PALETTES.confidence;

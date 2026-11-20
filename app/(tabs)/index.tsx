@@ -61,6 +61,9 @@ import * as Notifications from 'expo-notifications';
 import { getActivePack, type SeasonalPack } from '../../src/data/seasonal';
 
 const REMINDER_ASK_KEY = 'saybright.reminderAsk.v1';
+// Thank subscribers at a 7 day streak (HQ Backlog, Ramsey Nov 11 2026): once ever
+const SUBSCRIBER_THANKS_KEY = 'saybright.subscriberThanks.v1';
+const THANKS_STREAK = 7;
 
 export default function TodayScreen() {
   const [pool, setPool] = useState<Affirmation[]>([]);
@@ -76,6 +79,8 @@ export default function TodayScreen() {
   // second calendar day the app is opened, only when reminders are off and the
   // system prompt was never denied. Only 1 of 8 installs turned reminders on.
   const [reminderAsk, setReminderAsk] = useState(false);
+  // A Premium subscriber reached seven days in a row: one calm thank you card
+  const [thanks, setThanks] = useState(false);
   const seasonalPack = useMemo(() => getActivePack(), []);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [recordingModalOpen, setRecordingModalOpen] = useState(false);
@@ -195,6 +200,18 @@ export default function TodayScreen() {
         toast.show(`Streak saved. Day ${streakResult.current}.`);
       } else if (streakResult.lapsed && streakResult.isNewDay) {
         trackEvent('streak_save_offer', { kind: 'view', lost: streakResult.lapsed });
+      }
+      if (isPremium && streakResult.current >= THANKS_STREAK) {
+        try {
+          const thanked = await AsyncStorage.getItem(SUBSCRIBER_THANKS_KEY);
+          if (!thanked && active) {
+            await AsyncStorage.setItem(SUBSCRIBER_THANKS_KEY, getTodayKey());
+            setThanks(true);
+            trackEvent('subscriber_thanked', { current: streakResult.current });
+          }
+        } catch {
+          // The thank you is optional; never in the way of Today
+        }
       }
       if (streakResult.isNewDay) {
         trackEvent('streak_incremented', { current: streakResult.current });
@@ -539,7 +556,24 @@ export default function TodayScreen() {
             </View>
           ) : null}
 
-          {reminderAsk && !(lapsed && !lapsedDismissed && !isPremium) ? (
+          {thanks ? (
+            <View style={[styles.lapsed, onSky ? styles.chipNight : styles.chipDay]}>
+              <View style={styles.lapsedIcon}>
+                <Ionicons name="flame" size={18} color={C.onGold} />
+              </View>
+              <View style={styles.lapsedText}>
+                <Text style={[styles.lapsedTitle, { color: textColor }]}>Seven days in a row</Text>
+                <Text style={[styles.lapsedBody, { color: subtleTextColor }]}>Thanks for being part of SayBright. Your support keeps every new pack coming.</Text>
+                <View style={styles.lapsedActions}>
+                  <Tap onPress={() => setThanks(false)} hitSlop={10} style={styles.lapsedLater} accessibilityRole="button">
+                    <Text style={[styles.lapsedLaterText, { color: subtleTextColor }]}>Close</Text>
+                  </Tap>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {reminderAsk && !thanks && !(lapsed && !lapsedDismissed && !isPremium) ? (
             <View style={[styles.lapsed, onSky ? styles.chipNight : styles.chipDay]}>
               <View style={styles.lapsedIcon}>
                 <Ionicons name="notifications" size={18} color={C.onGold} />
@@ -559,7 +593,7 @@ export default function TodayScreen() {
             </View>
           ) : null}
 
-          <View style={[styles.hero, (lapsed && !lapsedDismissed && !isPremium) || reminderAsk ? styles.heroHidden : null, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
+          <View style={[styles.hero, (lapsed && !lapsedDismissed && !isPremium) || reminderAsk || thanks ? styles.heroHidden : null, { width: winWidth, marginLeft: -(winWidth - contentWidth) / 2 - 20 }]} pointerEvents="none">
             <SunriseHero width={winWidth} period={period} height={Math.min(240, Math.max(140, winHeight * 0.22))} />
           </View>
 

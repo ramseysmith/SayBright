@@ -42,6 +42,7 @@ export type AnalyticsEvent =
   | 'streak_saved'
   | 'streak_save_offer'
   | 'seasonal_opened'
+  | 'subscriber_thanked'
   // One per calendar day on launch or return to foreground (services/dailyOpen.ts)
   | 'daily_open';
 
@@ -97,6 +98,7 @@ type PortfolioEvent =
   | 'day_open'
   | 'streak_save'
   | 'seasonal_open'
+  | 'streak_thanks'
   | 'review_prompt'
   | 'reminder_prompt_shown'
   | 'app_open';
@@ -110,7 +112,7 @@ const posthogEnabled = !!POSTHOG_KEY && !__DEV__ && Platform.OS !== 'web' && !pr
  * day's date with any change to the paywall, its copy, its entry points or the
  * offer, and name it in the HQ experiments.md row (HQ docs/paywalls.md).
  */
-export const PAYWALL_VERSION = 'saybright-2026-11-13';
+export const PAYWALL_VERSION = 'saybright-2026-11-19';
 
 const SAFE_PROPS = ['source', 'plan', 'kind', 'milestone', 'categoryId', 'step', 'index'] as const;
 
@@ -149,6 +151,9 @@ function toPortfolioEvent(
       return [['streak_save', { kind: String(properties?.kind ?? 'view'), index: Number(properties?.lost ?? 0) }]];
     case 'seasonal_opened':
       return [['seasonal_open', { source: String(properties?.source ?? 'unknown') }]];
+    case 'subscriber_thanked':
+      // The one time thank you card for a Premium subscriber at a 7 day streak
+      return [['streak_thanks', { index: Number(properties?.current ?? 0) }]];
     case 'streak_milestone':
       return [['success_moment', { kind: 'streak' }]];
     case 'daily_set_finished':

@@ -15,6 +15,7 @@ import { useShare } from '../../src/context/ShareContext';
 import { trackEvent } from '../../src/services/analytics';
 import { usePremium } from '../../src/context/PremiumContext';
 import { PREVIEW_COUNT, isCategoryOpen } from '../../src/lib/free-tier';
+import { isPremiumPackId } from '../../src/data/seasonal';
 import CategoryIcon from '../../src/components/art/CategoryIcon';
 import Tap from '../../src/components/Tap';
 
@@ -34,6 +35,8 @@ export default function CategoryDetailScreen() {
   const unlocked = id ? isCategoryOpen(id, isPremium) : false;
   const items = unlocked ? all : all.slice(0, PREVIEW_COUNT);
   const pal = (id && CATEGORY_PALETTES[artKey(id)]) || CATEGORY_PALETTES.confidence;
+  // This month's Premium seasonal pack has its own paywall source (seasonal.ts)
+  const premiumPack = id ? isPremiumPackId(id) : false;
 
   const [favorites, setFavorites] = useState<string[]>([]);
 
@@ -121,9 +124,13 @@ export default function CategoryDetailScreen() {
                     <Ionicons name="lock-closed" size={18} color={C.onGold} />
                   </View>
                   <Text style={styles.lockTitle}>{all.length - PREVIEW_COUNT} more in {category.name}</Text>
-                  <Text style={styles.lockBody}>Premium opens every category, with no daily limit and no ads.</Text>
+                  <Text style={styles.lockBody}>
+                    {premiumPack
+                      ? 'Premium opens a new seasonal pack every month and every category, with no daily limit and no ads.'
+                      : 'Premium opens every category, with no daily limit and no ads.'}
+                  </Text>
                   <Tap
-                    onPress={() => router.push('/paywall?source=preview')}
+                    onPress={() => router.push(premiumPack ? '/paywall?source=season_premium' : '/paywall?source=preview')}
                     style={styles.lockCta}
                     pressedStyle={styles.lockCtaPressed}
                     accessibilityRole="button"
