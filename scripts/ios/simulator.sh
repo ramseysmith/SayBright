@@ -179,6 +179,11 @@ disable_updates() { # $1 = .app
 # in a Release Hermes bundle of the current tree (expo export:embed, what Xcode's
 # bundle phase runs), about 30 s. Proved on Tallyhand Nov 20 2026: a changed
 # string showed on screen. `build --full` or SIM_FULL_BUILD=1 forces native.
+# The JS must see the same env the full build gave it, or a smoke and the core flow
+# test a different app: eas build --local bakes in the profile env plus the EAS
+# server variables of its environment and never sees gitignored .env files, while
+# the xcodebuild fallback reads .env. Each cached build records which one it was
+# (method file) and the fast bundle repeats it; anything else is a full build.
 SIM_CACHE_DIR="${SIM_CACHE_DIR:-$HOME/Library/Caches/graysmith-sim}"
 native_key() { # $1 = dir, $2 = profile; prints a key or nothing
   (cd "$1" && node -e "
@@ -192,28 +197,53 @@ native_key() { # $1 = dir, $2 = profile; prints a key or nothing
   " "$2" 2>/dev/null) || true
 }
 cache_app_dir() { echo "$SIM_CACHE_DIR/$(basename "$PWD")/$1"; }
-store_in_cache() { # $1 = .app, $2 = key
-  [ -n "$2" ] || return 0
+# The EAS environment eas build would use for a profile (eas-cli
+# resolveSuggestedEnvironmentForBuildProfileConfiguration): its own environment, else
+# production for store distribution (the default), development for a dev client,
+# preview otherwise. extends chains are merged first.
+profile_environment() { # $1 = profile
+  node -e "
+    const b = require('./eas.json').build || {};
+    const res = (k, n = 0) => { const v = b[k] || {}; return v.extends && n < 5 ? { ...res(v.extends, n + 1), ...v } : v; };
+    const v = res(process.argv[1]);
+    process.stdout.write(v.environment || ((v.distribution || 'store') === 'store' ? 'production' : v.developmentClient ? 'development' : 'preview'));
+  " "$1" 2>/dev/null || true
+}
+store_in_cache() { # $1 = .app, $2 = key, $3 = method (eas:<environment> or xcodebuild)
+  [ -n "$2" ] && [ -n "${3:-}" ] || return 0
   local dest; dest="$(cache_app_dir "$2")"
-  rm -rf "$dest" && mkdir -p "$dest" && cp -R "$1" "$dest/app.app" || return 0
+  rm -rf "$dest" && mkdir -p "$dest" && cp -R "$1" "$dest/app.app" && echo "$3" > "$dest/method" || return 0
   # keep the three newest native builds per app
   ls -1t "$(dirname "$dest")" 2>/dev/null | tail -n +4 | while IFS= read -r old; do rm -rf "$(dirname "$dest")/$old"; done
   say "Cached this native build for fast JS builds (key $2)"
 }
 fast_build() { # $1 = dir, $2 = profile, $3 = key; returns 1 to fall back to a full build
-  local cached; cached="$(cache_app_dir "$3")/app.app"
+  local cached method; cached="$(cache_app_dir "$3")/app.app"
   [ -d "$cached" ] || return 1
+  method="$(cat "$(cache_app_dir "$3")/method" 2>/dev/null || true)"
+  case "$method" in eas:*|xcodebuild) ;; *) say "Cached build has no method record; full build"; return 1 ;; esac
   local entry bytecode="--bytecode" app="$PWD/$DEFAULT_APP" blog="$PWD/$OUT_DIR/ios-fast-bundle.log"
   [ "$(node -e "try{process.stdout.write(((require('./app.json').expo||{}).jsEngine)||'hermes')}catch(e){process.stdout.write('hermes')}")" = jsc ] && bytecode=""
   mkdir -p "$OUT_DIR/ios-sim" && cp -R "$cached" "$app" || return 1
   say "Fast build: native unchanged (key $3), bundling JS into the cached app"
   (
-    cd "$1" && export_profile_env "$2" >/dev/null || exit 1
+    cd "$1" || exit 1
     entry="$(node -e "require('expo/scripts/resolveAppEntry')" "$PWD" ios absolute | tail -n 1)"
     [ -n "$entry" ] || exit 1
-    EXPO_NO_TELEMETRY=1 npx expo export:embed --platform ios --dev false --entry-file "$entry" \
-      --bundle-output "$app/main.jsbundle" --assets-dest "$app" $bytecode > "$blog" 2>&1 \
-      || { tail -20 "$blog" >&2; exit 1; }
+    export EXPO_NO_TELEMETRY=1 FAST_ENTRY="$entry" FAST_APP="$app" FAST_BYTECODE="$bytecode"
+    # Profile env goes inside the command so it wins over server variables, as in eas build.
+    # --reset-cache: Metro's transform cache keeps EXPO_PUBLIC values inlined by an
+    # earlier bundle, which put Drift's .env RevenueCat key into a fast build (Nov 20).
+    local pre
+    pre="$(node -e "try{const e=(require('./eas.json').build[process.argv[1]]||{}).env||{};process.stdout.write(Object.entries(e).map(([k,v])=>k+'='+JSON.stringify(String(v)).replace(/\\$/g,'\\\\$')).join(' '))}catch(e){}" "$2")"
+    cmd="$pre npx expo export:embed --reset-cache --platform ios --dev false --entry-file \"\$FAST_ENTRY\" --bundle-output \"\$FAST_APP/main.jsbundle\" --assets-dest \"\$FAST_APP\" \$FAST_BYTECODE"
+    if [ "${method%%:*}" = eas ]; then
+      say "JS env as eas build: profile env plus EAS \"${method#eas:}\" variables, no .env files"
+      EXPO_NO_DOTENV=1 npx --yes eas-cli env:exec "${method#eas:}" --non-interactive "$cmd" > "$blog" 2>&1 || { tail -20 "$blog" >&2; exit 1; }
+    else
+      say "JS env as the xcodebuild fallback: profile env plus .env files"
+      bash -c "$cmd" > "$blog" 2>&1 || { tail -20 "$blog" >&2; exit 1; }
+    fi
   ) || { rm -rf "$app"; say "Fast build failed; doing a full native build"; return 1; }
   codesign --force --deep -s - "$app" >/dev/null 2>&1 || { rm -rf "$app"; return 1; }
   echo fast > "$OUT_DIR/.ios-build-mode"
@@ -224,6 +254,8 @@ cmd_build() {
   local profile full=0 key="" kdir
   [ "${1:-}" = "--full" ] && full=1
   [ "${SIM_FULL_BUILD:-0}" = 1 ] && full=1
+  # cached apps may have updates turned off, so testing updates on needs native
+  [ "${SIM_KEEP_UPDATES:-0}" = 1 ] && full=1
   profile="$(sim_profile)"
   rm -rf "$OUT_DIR/ios-sim" "$OUT_DIR/app-ios-sim.tar.gz" "$OUT_DIR/.ios-built-sha" "$OUT_DIR/.ios-build-mode"
   kdir="$PWD"; [ -n "${LOCAL_BUILD_MIRROR:-}" ] && kdir="$(native_build_dir)"
@@ -234,7 +266,7 @@ cmd_build() {
     say "Built $DEFAULT_APP at $(head_sha) (fast: cached native, fresh JS)"
     return 0
   fi
-  local built=0
+  local built=0 method=xcodebuild
   if [ -z "$profile" ]; then
     say "No eas.json profile builds for the simulator (copy android-sim from HQ templates/app/eas.json); building with expo prebuild plus xcodebuild"
   elif ! command -v fastlane >/dev/null 2>&1; then
@@ -244,7 +276,7 @@ cmd_build() {
     if npx --yes eas-cli build --local --non-interactive -p ios --profile "$profile" --output "$OUT_DIR/app-ios-sim.tar.gz"; then
       mkdir -p "$OUT_DIR/ios-sim"
       tar -xzf "$OUT_DIR/app-ios-sim.tar.gz" -C "$OUT_DIR/ios-sim"
-      built=1
+      built=1; method="eas:$(profile_environment "$profile")"
     else
       say "eas build --local failed; falling back to expo prebuild plus xcodebuild"
     fi
@@ -269,7 +301,7 @@ cmd_build() {
   app="$(ls -d "$OUT_DIR"/ios-sim/*.app 2>/dev/null | head -1 || true)"
   [ -n "$app" ] || die "Build finished without a .app in $OUT_DIR/ios-sim"
   [ "$app" = "$DEFAULT_APP" ] || { rm -rf "$DEFAULT_APP"; mv "$app" "$DEFAULT_APP"; }
-  store_in_cache "$DEFAULT_APP" "$key"
+  store_in_cache "$DEFAULT_APP" "$key" "$method"
   disable_updates "$DEFAULT_APP"
   head_sha > "$OUT_DIR/.ios-built-sha"
   echo full > "$OUT_DIR/.ios-build-mode"
@@ -283,9 +315,13 @@ cmd_cache_seed() {
   local why; why="$(stale_build "$OUT_DIR/.ios-built-sha")"
   [ -z "$why" ] || die "Not seeding: $why"
   [ -z "$(git status --porcelain -- . ':(exclude)build' 2>/dev/null)" ] || die "Uncommitted changes; commit first"
-  local key; key="$(native_key "$PWD" "$(sim_profile)")"
+  local profile key method; profile="$(sim_profile)"; key="$(native_key "$PWD" "$profile")"
   [ -n "$key" ] || die "Could not compute the native fingerprint (@expo/fingerprint missing?)"
-  store_in_cache "$DEFAULT_APP" "$key"
+  # The build here came from cmd_build, which uses eas build --local whenever it can.
+  method=xcodebuild
+  [ -n "$profile" ] && command -v fastlane >/dev/null 2>&1 && method="eas:$(profile_environment "$profile")"
+  [ "${SEED_METHOD:-}" ] && method="$SEED_METHOD"
+  store_in_cache "$DEFAULT_APP" "$key" "$method"
 }
 
 # One call for the whole gate: boot, build (fast when native is unchanged),
